@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>嘉明湖沿線氣溫</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+:root{
+  --color-bg:#faf9f5;--color-panel:#ffffff;--color-fg:#141413;--color-fg-muted:#6b6a64;
+  --color-border-line:rgba(31,30,29,.14);--color-ok:#2f7d4f;--color-warn:#a5650a;--color-bad:#b53333;
+  --font-anthropic-sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI","PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  --font-anthropic-serif:ui-serif,Georgia,"Noto Serif TC","Songti TC",serif;
+  --cds-font-size-caption:.75rem;--cds-font-size-body:.875rem;--cds-font-size-heading:.9375rem;--cds-font-size-title:1.25rem;
+  --cds-font-weight-medium:500;--cds-gap-xs:.375rem;--cds-gap-sm:.5rem;--cds-gap-md:.75rem;--cds-gap-lg:1.25rem;
+  --cds-pad-xs:.25rem;--cds-pad-sm:.375rem;--cds-pad-md:.5rem;--cds-pad-lg:.875rem;--cds-radius:.5rem;
+  --cds-border:var(--color-border-line);--cds-dur-slow:.45s;--cds-ease-out:cubic-bezier(0,0,.2,1);
+  --cds-shadow-popover:0 8px 24px #0000001f,0 2px 6px #00000014;--cds-surface-popover:var(--color-panel);--cds-text-secondary:var(--color-fg-muted);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --color-bg:#1f1e1d;--color-panel:#262624;--color-fg:#faf9f5;--color-fg-muted:#a6a39b;
+  --color-border-line:rgba(222,220,209,.15);--color-ok:#6cc58f;--color-warn:#e2a64a;--color-bad:#f08a7e;
+  --cds-shadow-popover:0 8px 24px #00000052,0 2px 6px #0003;color-scheme:dark;}}
+html{background:var(--color-bg);}
+body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(--font-anthropic-sans);font-size:var(--cds-font-size-body);line-height:1.5;-webkit-text-size-adjust:100%;}
+#dash-root{padding:20px 16px 40px;box-sizing:border-box;}
+#dash-root *,#dash-root *::before,#dash-root *::after{box-sizing:border-box;}
+[hidden]{display:none!important;}
+.dash-skeleton{color:var(--color-fg-muted);}
+.site-foot{max-width:1100px;margin:28px auto 0;color:var(--color-fg-muted);font-size:var(--cds-font-size-caption);line-height:1.6;}
+.site-err{max-width:1100px;margin:0 auto 16px;padding:10px 12px;border:1px solid var(--color-border-line);border-radius:var(--cds-radius);color:var(--color-bad);display:none;}
+</style>
+<script>
+/* 把原本儀表板用的 dash.data / dash.calc / dash.onData 換成讀 data.json 的版本 */
+(function(){
+  var store={}, loaded=false, failed=false, calcs={}, cache={}, subs=[];
+  function rowsOf(v){ if(Array.isArray(v)) return v; if(v&&typeof v==='object'){ for(var k of ['rows','data','results']) if(Array.isArray(v[k])) return v[k]; } return v==null?[]:v; }
+  function cols(rows){ return Array.isArray(rows)&&rows.length&&typeof rows[0]==='object'?Object.keys(rows[0]):[]; }
+  function res(status,data,msg){ var d=data||[]; return {status:status,data:d,rows:d,columns:cols(d),value:d,message:msg||'',refreshing:false,meta:[]}; }
+  function get(id){
+    if(failed) return res('error',[],'資料讀取失敗');
+    if(!loaded) return res('loading');
+    if(calcs[id]){
+      if(cache[id]) return cache[id];
+      var ins=calcs[id].inputs.map(get), bad=ins.find(function(r){return r.status!=='ok';});
+      if(bad) return bad.status==='missing'?res('missing'):bad;
+      try{ return cache[id]=res('ok',calcs[id].fn.apply(null,ins.map(function(r){return r.data;}))); }
+      catch(e){ console.error(id,e); return cache[id]=res('error',[],String(e)); }
+    }
+    if(!(id in store)) return res('missing');
+    return res('ok',rowsOf(store[id]));
+  }
+  function run(){ subs.forEach(function(fn){ try{fn();}catch(e){console.error(e);} }); }
+  window.dash={
+    data:get,
+    calc:function(id,o){ calcs[id]={inputs:o.inputs||[],fn:o.fn}; },
+    loader:function(){},
+    onData:function(fn){ subs.push(fn); fn(); },
+    colors:['#2f5fb3','#d9733a','#3aa39a','#9a5fc0','#d9a23a','#c2477a','#5c8a3a','#7a8696'],
+    refresh:function(){}, params:function(){return {};}, setParams:function(){}, resetParams:function(){}, setLink:function(){}
+  };
+  fetch('data.json?v='+Date.now(),{cache:'no-store'}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function(j){ store=j.datasets||{}; loaded=true; cache={}; run();
+      var f=document.getElementById('site-updated'); if(f&&j.updated_at) f.textContent=j.updated_at; })
+    .catch(function(e){ failed=true; run(); var b=document.getElementById('site-err'); if(b){b.style.display='block';} });
+  var w=0; window.addEventListener('resize',function(){ var n=window.innerWidth; if(Math.abs(n-w)>40){ w=n; cache={}; run(); } });
+})();
+</script>
+</head>
+<body>
+<div id="dash-root">
+<div class="site-err" id="site-err">資料暫時讀不到，請稍後重新整理。</div>
+<style>
+/* 版面：頁首＋三張過夜溫度卡 → 山形剖面疊氣溫的主圖 → 各點時間軸（溫度計條）→ 來源 */
+#dash-root { --jm-c0: #2f5fb3; --jm-c5: #3f8fd2; --jm-c10: #3aa39a; --jm-c15: #d9a23a; --jm-c20: #d9733a; --jm-ridge: #8a96a8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #dash-root { --jm-c0: #7aa5f0; --jm-c5: #6cb7ef; --jm-c10: #5fcbbf; --jm-c15: #e9bd61; --jm-c20: #f0925d; --jm-ridge: #6f7b8e; } }
+:root[data-theme="dark"] #dash-root { --jm-c0: #7aa5f0; --jm-c5: #6cb7ef; --jm-c10: #5fcbbf; --jm-c15: #e9bd61; --jm-c20: #f0925d; --jm-ridge: #6f7b8e; }
+
+.jm { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); max-width: 1100px; margin-inline: auto; }
+.jm-eyebrow { font-size: var(--cds-font-size-caption); letter-spacing: .08em; color: var(--color-fg-muted); margin: 0 0 var(--cds-gap-xs); }
+.jm-head h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: calc(var(--cds-font-size-title) * 1.35); line-height: 1.15; margin: 0; text-wrap: balance; }
+.jm-take { color: var(--color-fg-muted); margin: var(--cds-gap-sm) 0 0; font-size: var(--cds-font-size-body); max-width: 62ch; line-height: 1.6; }
+.jm-take b { color: var(--color-fg); font-weight: 600; }
+.jm-low { display: inline-block; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); border-radius: 999px; padding: 0 8px; margin-left: 4px; white-space: nowrap; }
+
+.jm-tiles { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+.jm-tile { position: relative; overflow: hidden; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-xs); min-height: 9.5rem; }
+.jm-tile::after { content: ""; position: absolute; inset: auto 0 0 0; height: 4px; background: var(--jm-tone, var(--color-border-line)); }
+.jm-tile .k { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.jm-tile .p { font-weight: 600; }
+.jm-tile .big { font-family: var(--font-anthropic-serif); font-size: calc(var(--cds-font-size-title) * 1.6); line-height: 1; font-variant-numeric: tabular-nums; color: var(--jm-tone, var(--color-fg)); }
+.jm-tile .big small { font-size: .45em; color: var(--color-fg-muted); margin-left: 2px; }
+.jm-tile .sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; line-height: 1.5; }
+.jm-tile.na .big { color: var(--color-fg-muted); font-size: var(--cds-font-size-title); }
+
+.jm-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
+.jm-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+.jm-note { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); margin: var(--cds-gap-xs) 0 var(--cds-gap-md); line-height: 1.55; }
+.jm-chart { position: relative; min-height: 380px; }
+.jm-chart svg text { fill: var(--color-fg-muted); font-size: 11px; font-family: var(--font-anthropic-sans); font-variant-numeric: tabular-nums; }
+.jm-chart svg .strong { fill: var(--color-fg); font-weight: 600; }
+.jm-chart svg .ridge-lbl { fill: var(--color-fg-muted); font-size: 10px; }
+.jm-key { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs) var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-top: var(--cds-gap-sm); }
+.jm-key span { display: inline-flex; align-items: center; gap: 6px; }
+.jm-sw { width: 20px; height: 3px; border-radius: 2px; display: inline-block; background: linear-gradient(90deg, var(--jm-c0), var(--jm-c10), var(--jm-c20)); }
+.jm-sw.dash { height: 0; background: none; border-top: 2px dashed var(--jm-c5); }
+.jm-sw.thin { height: 2px; background: var(--color-fg-muted); opacity: .7; }
+.jm-box { width: 14px; height: 10px; border-radius: 2px; display: inline-block; background: var(--jm-ridge); opacity: .35; }
+.jm-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; min-width: 160px; z-index: 2; line-height: 1.5; }
+.jm-tip .t { color: var(--cds-text-secondary); }
+
+.jm-scale { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) auto minmax(6.5rem, 36%); gap: var(--cds-gap-sm); font-size: 10px; color: var(--color-fg-muted); margin-bottom: 2px; }
+.jm-scale .ticks { position: relative; height: 14px; }
+.jm-scale .ticks span { position: absolute; transform: translateX(-50%); font-variant-numeric: tabular-nums; }
+.jm-day { margin-top: var(--cds-gap-md); }
+.jm-day h3 { font-size: var(--cds-font-size-caption); letter-spacing: .06em; font-weight: 600; margin: 0 0 var(--cds-gap-xs); color: var(--color-fg-muted); }
+.jm-row { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) auto minmax(6.5rem, 36%); gap: var(--cds-gap-sm); align-items: center; padding: 10px 0; position: relative; font-variant-numeric: tabular-nums; }
+.jm-row + .jm-row { border-top: 1px dashed var(--color-border-line); }
+.jm-time { font-weight: 600; font-size: var(--cds-font-size-body); }
+.jm-time .ev { display: block; font-weight: 400; font-size: 11px; color: var(--color-fg-muted); }
+.jm-time .ev.camp { color: var(--color-fg); }
+.jm-place { min-width: 0; line-height: 1.35; }
+.jm-place .nm { font-weight: 500; }
+.jm-place .meta { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.jm-thermo { position: relative; height: 26px; }
+.jm-thermo .rail { position: absolute; left: 0; right: 0; top: 12px; height: 2px; border-radius: 2px; background: var(--color-border-line); }
+.jm-thermo .zero { position: absolute; top: 6px; height: 14px; width: 1px; background: var(--color-fg-muted); opacity: .5; }
+.jm-thermo .rng { position: absolute; top: 8px; height: 10px; border-radius: 6px; min-width: 10px; }
+.jm-thermo .feel { position: absolute; top: 7px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--color-panel); transform: translateX(-50%); }
+.jm-thermo .val { position: absolute; top: -9px; font-size: 11px; font-weight: 600; color: var(--color-fg); transform: translateX(-50%); white-space: nowrap; }
+.jm-thermo .na { position: absolute; inset: 0; display: flex; align-items: center; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.jm-legend2 { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs) var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-top: var(--cds-gap-md); }
+.jm-legend2 i { display: inline-block; vertical-align: middle; margin-right: 6px; }
+
+.jm-view { display: inline-flex; margin-top: var(--cds-gap-md); border: 1px solid var(--color-border-line); border-radius: 999px; padding: 3px; gap: 2px; background: var(--color-panel); max-width: 100%; flex-wrap: wrap; }
+.jm-view button { font: inherit; font-size: var(--cds-font-size-caption); border: 0; border-radius: 999px; padding: 6px 14px; background: transparent; color: var(--color-fg-muted); cursor: pointer; }
+.jm-view button[aria-pressed="true"] { background: var(--color-fg); color: var(--color-bg); font-weight: 600; }
+.jm-view button:focus-visible { outline: 2px solid var(--jm-c5); outline-offset: 2px; }
+.jm-banner { margin: var(--cds-gap-sm) 0 0; padding: var(--cds-pad-sm) var(--cds-pad-md); border-radius: var(--cds-radius); border: 1px dashed var(--jm-c15); font-size: var(--cds-font-size-caption); line-height: 1.6; max-width: 62ch; }
+.jm-wx { display: inline-flex; gap: 2px; align-items: center; }
+.jm-wx svg { width: 22px; height: 22px; display: block; }
+.jm-wx .ph { width: 22px; height: 22px; display: grid; place-items: center; color: var(--color-fg-muted); font-size: 11px; }
+.jm-scale .wxh { display: inline-flex; gap: 2px; font-size: 9px; letter-spacing: .02em; }
+.jm-scale .wxh span { width: 22px; text-align: center; }
+.jm-tile .p { display: flex; align-items: center; gap: 6px; }
+.jm-tile .p svg { width: 26px; height: 26px; flex: none; }
+.jm-tile .wxl { font-weight: 400; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.jm-icons { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs) var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-top: var(--cds-gap-xs); }
+.jm-icons span { display: inline-flex; align-items: center; gap: 4px; }
+.jm-icons svg { width: 20px; height: 20px; }
+#dash-root { --jm-sun: var(--jm-c15); --jm-moon: var(--jm-c15); --jm-cloud: var(--jm-ridge); --jm-drop: var(--jm-c5); --jm-bolt: var(--jm-c20); }
+.jm-cwa { width: 100%; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; min-width: 520px; }
+.jm-cwa th { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-weight: 500; text-align: left; padding: 6px 8px; }
+.jm-cwa th small { display: block; font-weight: 400; }
+.jm-cwa td { padding: 6px 8px; border-top: 1px solid var(--color-border-line); vertical-align: middle; }
+.jm-cwa td.slot { white-space: nowrap; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.jm-cwa td.slot b { color: var(--color-fg); font-weight: 600; margin-right: 4px; }
+.jm-cwa tr.night td { background: color-mix(in srgb, var(--jm-ridge) 7%, transparent); }
+.jm-cwa tr.trip td { background: color-mix(in srgb, var(--jm-c15) 16%, transparent); }
+.jm-cell { display: flex; align-items: center; gap: 6px; }
+.jm-cell svg { width: 24px; height: 24px; flex: none; }
+.jm-cell .tt { font-weight: 600; }
+.jm-cell .pp { font-size: 11px; color: var(--color-fg-muted); display: block; font-weight: 400; }
+.jm-status { display: flex; flex-wrap: wrap; gap: var(--cds-gap-xs) var(--cds-gap-sm); margin: 0 0 var(--cds-gap-md); }
+.jm-pill { font-size: var(--cds-font-size-caption); border-radius: 999px; padding: 2px 10px; border: 1px solid var(--color-border-line); color: var(--color-fg-muted); }
+.jm-pill.ok { border-color: transparent; background: color-mix(in srgb, var(--color-ok) 16%, transparent); color: var(--color-fg); }
+.jm-rain { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: var(--cds-font-size-caption); min-width: 520px; }
+.jm-rain th, .jm-rain td { padding: 6px 8px; border-top: 1px solid var(--color-border-line); text-align: right; }
+.jm-rain th { color: var(--color-fg-muted); font-weight: 500; }
+.jm-rain th:first-child, .jm-rain td:first-child { text-align: left; }
+.jm-rain td.hi { font-weight: 600; color: var(--color-fg); }
+.jm-warn { border-left: 3px solid var(--jm-c20); padding: var(--cds-pad-sm) var(--cds-pad-md); margin-top: var(--cds-gap-md); font-size: var(--cds-font-size-caption); line-height: 1.6; background: color-mix(in srgb, var(--jm-c20) 8%, transparent); border-radius: 0 var(--cds-radius) var(--cds-radius) 0; }
+.jm-links { display: grid; gap: var(--cds-gap-sm); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); margin-top: var(--cds-gap-sm); }
+.jm-links a { display: block; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); color: var(--color-fg); text-decoration: none; font-size: var(--cds-font-size-body); line-height: 1.4; }
+.jm-links a:hover { border-color: var(--color-fg-muted); }
+.jm-links a:focus-visible { outline: 2px solid var(--jm-c5); outline-offset: 2px; }
+.jm-links a small { display: block; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
+.jm-src { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); }
+.jm-src th, .jm-src td { text-align: left; padding: 6px 8px 6px 0; border-top: 1px solid var(--color-border-line); vertical-align: top; }
+.jm-src th { color: var(--color-fg-muted); font-weight: 500; }
+.jm-scroll { overflow-x: auto; }
+.jm-foot { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); line-height: 1.6; margin-top: var(--cds-gap-md); }
+.jm-foot ul { margin: 0; padding-left: 1.2em; }
+[data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+@media (max-width: 520px) {
+  .jm-row, .jm-scale { grid-template-columns: 3.4rem minmax(0, 1fr) auto 36%; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .jm-line { animation: jm-draw 1.2s var(--cds-ease-out) both; }
+  @keyframes jm-draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
+}
+.jm-assess { display: grid; gap: var(--cds-gap-md); }
+.jm-assess .ov { border-left: 4px solid var(--jm-lv, var(--color-border-line)); padding: var(--cds-pad-xs) 0 var(--cds-pad-xs) var(--cds-pad-md); }
+.jm-assess .ov .hl { font-family: var(--font-anthropic-serif); font-size: calc(var(--cds-font-size-heading) * 1.15); line-height: 1.4; margin: 0; text-wrap: pretty; }
+.jm-assess .ov .dt { color: var(--color-fg-muted); margin: var(--cds-gap-xs) 0 0; line-height: 1.65; max-width: 68ch; }
+.jm-assess ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--cds-gap-sm); grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); }
+.jm-assess li { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); display: grid; gap: 4px; align-content: start; }
+.jm-assess .tp { display: flex; align-items: center; gap: 8px; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); flex-wrap: wrap; }
+.jm-assess .lv { font-size: var(--cds-font-size-caption); border-radius: 999px; padding: 0 8px; background: color-mix(in srgb, var(--jm-lv) 18%, transparent); color: var(--color-fg); white-space: nowrap; }
+.jm-assess .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--jm-lv); flex: none; }
+.jm-assess li .hl { font-weight: 600; line-height: 1.45; }
+.jm-assess li .dt { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.6; }
+.jm-assess .bs { font-size: 11px; color: var(--color-fg-muted); opacity: .85; }
+.jm-assess .lv-good { --jm-lv: var(--color-ok); } .jm-assess .lv-caution { --jm-lv: var(--color-warn); } .jm-assess .lv-bad { --jm-lv: var(--color-bad); } .jm-assess .lv-unknown { --jm-lv: var(--color-fg-muted); }
+</style>
+
+<div class="jm">
+  <header class="jm-head">
+    <p class="jm-eyebrow">11/6–11/8｜戒茂斯上嘉明湖・向陽出｜三天兩夜</p>
+    <h1 id="title">嘉明湖沿線氣溫</h1>
+    <p class="jm-take"><span id="take-real">預報目前涵蓋到 <b data-source="summary" data-field="covered_until" data-row="0" class="dash-skeleton">—</b>。已涵蓋的時段裡，體感最低 <b data-source="summary" data-field="coldest_feels" data-row="0" class="dash-skeleton">—</b> °C，在 <b data-source="summary" data-field="coldest_place" data-row="0" class="dash-skeleton">—</b>（<span data-source="summary" data-field="coldest_time" data-row="0" class="dash-skeleton">—</span>）。</span><span class="jm-low">遠期預報・低可信度</span></p>
+    <div class="jm-view" role="group" aria-label="切換日期">
+      <button type="button" id="v-real" aria-pressed="true">實際行程 11/6–11/8</button>
+      <button type="button" id="v-m2" aria-pressed="false">提前兩天試算 11/4–11/6</button>
+    </div>
+    <p class="jm-banner" id="m2-banner" hidden>這是 <b>11/4–11/6</b> 的預報，套用同一份行程時刻（每點時間都提前兩天），用來先看完整三天、兩晚營地和三叉山凌晨的溫度樣貌。<b>不是出發日的預報</b>，不同日期的天氣可能差很多。</p>
+  </header>
+
+  <section class="jm-card" id="assessment">
+    <h2>綜合評估</h2>
+    <p class="jm-note">根據下方的預報、雨量和步道公告整理，每天跟著資料更新。評估時間 <span id="assess-time" data-source="assessment" data-field="assessed_at" data-where="id=overall">—</span>。</p>
+    <div class="jm-assess" id="assess-box" data-source="assessment"></div>
+  </section>
+
+  <section class="jm-tiles" id="night-tiles" data-source="nights"></section>
+
+  <section class="jm-card" id="route-chart">
+    <h2>整趟路的氣溫，疊在山形上看</h2>
+    <p class="jm-note">背景是行程的海拔剖面，線是每個小時你所在地點的預報氣溫，越往上越暖、顏色越藍越冷。灰底是在營地過夜，斜線是還沒有預報。底下兩排小圖示是兩個模式的天氣型態，兩者常常不一致。點圖可看該小時數值。</p>
+    <div class="jm-chart" id="chart" data-source="route itinerary"></div>
+    <div class="jm-key">
+      <span><i class="jm-sw"></i>氣溫 GFS</span>
+      <span><i class="jm-sw dash"></i>體感 GFS</span>
+      <span><i class="jm-sw thin"></i>氣溫 ECMWF</span>
+      <span><i class="jm-box"></i>海拔剖面</span>
+    </div>
+    <div class="jm-icons" id="icon-key"></div>
+  </section>
+
+  <section class="jm-card" id="checkpoints">
+    <h2>各點抵達時刻</h2>
+    <p class="jm-note">時刻照行程表，數值取最接近的整點。小圖示左邊是 ECMWF、右邊是 GFS 的天氣型態。色條是兩個模式的氣溫範圍，圓點是體感溫度，數字是兩者中較低的氣溫。</p>
+    <div id="days" data-source="checkpoints"></div>
+    <div class="jm-legend2">
+      <span><i class="jm-sw" style="width:28px;height:8px;border-radius:4px"></i>氣溫範圍（ECMWF～GFS）</span>
+      <span><i style="width:10px;height:10px;border-radius:50%;background:var(--jm-c5)"></i>體感</span>
+      <span><i style="width:1px;height:12px;background:var(--color-fg-muted)"></i>0 °C</span>
+    </div>
+  </section>
+
+  <section class="jm-card" id="cwa">
+    <h2>中央氣象署 一週預報</h2>
+    <p class="jm-note">嘉明湖步道沿線的三個官方預報點，分白天、晚上。黃底是行程日期，第 4 天以後氣象署不提供降雨機率。</p>
+    <div class="jm-status" id="cwa-status" data-source="cwa_week"></div>
+    <div class="jm-scroll">
+      <table class="jm-cwa" id="cwa-table" data-source="cwa_week">
+        <thead><tr>
+          <th>日期</th>
+          <th>向陽森林遊樂區<small>約 2,320 m・下山終點</small></th>
+          <th>向陽山<small>3,603 m・近嘉明湖山屋</small></th>
+          <th>三叉山<small>3,496 m・嘉明湖旁</small></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="jm-card" id="rain">
+    <h2>沿線雨量觀測</h2>
+    <p class="jm-note">中央氣象署雨量站的實測累積雨量（mm），觀測時間 <span data-source="rain_obs" data-field="observed_at" data-row="0" id="rain-time">—</span>。「－」表示該時段沒有雨量紀錄。</p>
+    <div class="jm-scroll">
+      <table class="jm-rain" id="rain-table" data-source="rain_obs" data-row-key="station_id">
+        <thead><tr>
+          <th data-field="station">測站</th>
+          <th data-field="h1">1 小時</th>
+          <th data-field="h3">3 小時</th>
+          <th data-field="h24">24 小時</th>
+          <th data-field="today">本日</th>
+          <th data-field="d2">2 日</th>
+          <th data-field="d3">3 日</th>
+          <th data-field="d4">4 日</th>
+          <th data-field="d5">5 日</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="jm-warn">戒茂斯路線沿途要過溪兩次，大雨後溪水可能暴漲無法通過，妹池一帶營地也曾淹水。出發前幾天的累積雨量要特別留意。（嘉明湖山屋管理員提醒）</div>
+  </section>
+
+  <section class="jm-card" id="links">
+    <h2>出發前再確認</h2>
+    <div class="jm-links">
+      <a href="https://www.cwa.gov.tw/V8/C/L/NatForest/NatForest.html?PID=E041" target="_blank" rel="noopener">向陽森林遊樂區<small>氣象署：24 小時逐時、3 日逐 3 小時、一週</small></a>
+      <a href="https://www.cwa.gov.tw/V8/C/L/Mountain/Mountain.html?PID=D058" target="_blank" rel="noopener">向陽山<small>氣象署登山預報</small></a>
+      <a href="https://www.cwa.gov.tw/V8/C/L/Mountain/Mountain.html?PID=D055" target="_blank" rel="noopener">三叉山<small>氣象署登山預報</small></a>
+      <a href="https://www.cwa.gov.tw/V8/C/P/Rainfall/Rainfall_QZJ.html" target="_blank" rel="noopener">雨量日累積圖<small>單日到前 4 日累積</small></a>
+      <a href="https://www.windy.com/23.287/121.030?23.287,121.030,11" target="_blank" rel="noopener">Windy<small>嘉明湖一帶的模式比較、風場</small></a>
+      <a href="https://recreation.forest.gov.tw/Trail/RT?tr_id=139" target="_blank" rel="noopener">嘉明湖國家步道<small>台灣山林悠遊網・開放公告</small></a>
+    </div>
+    <p class="jm-note" style="margin-top:var(--cds-gap-md)">南橫公路（台 20 線）的封閉或管制，出發前請向公路局工務段確認：東側找關山工務段，西側找甲仙工務段。</p>
+  </section>
+
+  <section class="jm-card" id="sources">
+    <h2>資料來源與涵蓋範圍</h2>
+    <div class="jm-scroll">
+      <table class="jm-src" id="src-table" data-source="sources" data-row-key="source">
+        <thead><tr>
+          <th data-field="source">來源</th>
+          <th data-field="last_forecast">最遠預報</th>
+          <th data-field="queried_at">查詢時間</th>
+          <th data-field="note">備註</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="jm-foot">
+      <ul>
+        <li>Open-Meteo 格點預報已依各點海拔做模式修正，是模式調整值，不是現地觀測。這一帶多數地點共用同一個模式格點，差異主要來自海拔。</li>
+        <li>登山口、新武呂溪營地、妹池的座標是估計值。</li>
+        <li>風速是 10 m 高的平均風；這類全球模式常低估稜線風，三叉山、嘉明湖一帶實際風勢通常更強。</li>
+        <li>沒有預報的時段留白，不代表天氣好，也不代表降雨機率 0%。</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script>
+function jmCalcs(SFX, ROUTE, SHIFT) {
+dash.calc('checkpoints' + SFX, {
+  title: SHIFT ? '行程各點（提前兩天試算）' : '行程各點的預報值',
+  description: '行程表每一個點，對上它最接近整點時、在該地點的格點預報。',
+  inputs: ['itinerary', ROUTE],
+  fn: (itinerary, route) => itinerary.map(it => {
+    const sh = s => { const d = new Date(s + ':00Z'); d.setUTCDate(d.getUTCDate() + SHIFT); return d.toISOString().slice(0, 16); };
+    const r = route.find(x => x.time === sh(it.forecast_hour)) || {};
+    return { time: sh(it.time), day: it.day, event: it.event, place: it.place, elev_m: it.elev_m,
+      temp_ecmwf: r.temp_ecmwf ?? null, temp_gfs: r.temp_gfs ?? null,
+      feels_ecmwf: r.feels_ecmwf ?? null, feels_gfs: r.feels_gfs ?? null,
+      rainprob_ecmwf: r.rainprob_ecmwf ?? null, rainprob_gfs: r.rainprob_gfs ?? null,
+      wind_ecmwf: r.wind_ecmwf ?? null, wind_gfs: r.wind_gfs ?? null,
+      wcode_ecmwf: r.wcode_ecmwf ?? null, wcode_gfs: r.wcode_gfs ?? null };
+  })
+});
+
+dash.calc('nights' + SFX, {
+  title: SHIFT ? '營地夜間摘要（提前兩天試算）' : '營地夜間與凌晨摘要',
+  description: '第一晚新武呂溪營地 11/6 18:00–11/7 06:00、第二晚獵寮營地 11/7 18:00–11/8 06:00、第三天 11/8 04:00–07:00 的最低、最高與累計值。',
+  inputs: [ROUTE],
+  fn: (route) => {
+    const segs = [
+      ['第一晚', '新武呂溪營地 2208 m', '2026-11-06T18:00', '2026-11-07T06:00'],
+      ['第二晚', '獵寮營地 3130 m', '2026-11-07T18:00', '2026-11-08T06:00'],
+      ['第三天凌晨', '往嘉明湖、三叉山', '2026-11-08T04:00', '2026-11-08T07:00']
+    ];
+    const r1 = v => v == null ? null : Math.round(v * 10) / 10;
+    const pick = (rs, k) => rs.map(r => r[k]).filter(x => x != null);
+    const min = (rs, k) => { const v = pick(rs, k); return v.length ? r1(Math.min(...v)) : null; };
+    const max = (rs, k) => { const v = pick(rs, k); return v.length ? r1(Math.max(...v)) : null; };
+    const sum = (rs, k) => { const v = pick(rs, k); return v.length ? r1(v.reduce((a, b) => a + b, 0)) : null; };
+    return segs.map(([segment, place, from, to]) => {
+      const sh = s => { const d = new Date(s + ':00Z'); d.setUTCDate(d.getUTCDate() + SHIFT); return d.toISOString().slice(0, 16); };
+      from = sh(from); to = sh(to);
+      const rs = route.filter(r => r.time >= from && r.time <= to);
+      const hm = s => s.slice(5, 10).replace('-', '/') + ' ' + s.slice(11);
+      return { segment, place, window: hm(from) + '–' + hm(to),
+        hours_total: rs.length, hours_ecmwf: pick(rs, 'temp_ecmwf').length, hours_gfs: pick(rs, 'temp_gfs').length,
+        tmin_ecmwf: min(rs, 'temp_ecmwf'), tmin_gfs: min(rs, 'temp_gfs'),
+        feels_min_ecmwf: min(rs, 'feels_ecmwf'), feels_min_gfs: min(rs, 'feels_gfs'),
+        rh_max_gfs: max(rs, 'rh_gfs'), rain_sum_gfs: sum(rs, 'rain_mm_gfs'),
+        rainprob_max_gfs: max(rs, 'rainprob_gfs'), wind_max_gfs: max(rs, 'wind_gfs'),
+        wcode_max_ecmwf: max(rs, 'wcode_ecmwf'), wcode_max_gfs: max(rs, 'wcode_gfs') };
+    });
+  }
+});
+
+dash.calc('summary' + SFX, {
+  title: SHIFT ? '最低體感（提前兩天試算）' : '涵蓋範圍與最低體感',
+  description: '任一模式有預報的最後時刻，以及已涵蓋時段中最低的體感溫度與地點。',
+  inputs: [ROUTE],
+  fn: (route) => {
+    const cov = route.filter(r => r.temp_gfs != null || r.temp_ecmwf != null);
+    const last = cov.length ? cov[cov.length - 1].time : null;
+    let best = null;
+    route.forEach(r => [r.feels_gfs, r.feels_ecmwf].forEach(v => { if (v != null && (!best || v < best.v)) best = { v, r }; }));
+    const fmt = s => s ? s.slice(5, 10).replace('-', '/') + ' ' + s.slice(11) : null;
+    return [{ covered_until: fmt(last), coldest_feels: best ? best.v : null, coldest_place: best ? best.r.place : null, coldest_time: best ? fmt(best.r.time) : null }];
+  }
+});
+
+}
+jmCalcs('', 'route', 0);
+jmCalcs('_m2', 'route_m2', -2);
+
+window.jmWx = (() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const kind = c => c == null ? null : c === 0 ? 'clear' : c <= 2 ? 'partly' : c === 3 ? 'cloud' : (c === 45 || c === 48) ? 'fog'
+    : (c >= 51 && c <= 57) ? 'drizzle' : ((c >= 61 && c <= 67) || (c >= 80 && c <= 82)) ? 'rain'
+    : ((c >= 71 && c <= 77) || c === 85 || c === 86) ? 'snow' : c >= 95 ? 'thunder' : 'cloud';
+  const LABEL = { clear: '晴', partly: '晴時多雲', cloud: '陰', fog: '霧', drizzle: '毛毛雨', rain: '雨', snow: '雪', thunder: '雷雨' };
+  const NIGHT = { clear: '晴（夜）', partly: '多雲（夜）' };
+  const el = (n, a, st) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (st) e.setAttribute('style', st); return e; };
+  const sun = (g, cx, cy, r) => {
+    g.append(el('circle', { cx, cy, r }, 'fill:var(--jm-sun)'));
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, r1 = r + 2, r2 = r + 4.2;
+      g.append(el('line', { x1: cx + r1 * Math.cos(a), y1: cy + r1 * Math.sin(a), x2: cx + r2 * Math.cos(a), y2: cy + r2 * Math.sin(a), 'stroke-width': 1.6, 'stroke-linecap': 'round' }, 'stroke:var(--jm-sun)')); }
+  };
+  const moon = (g, cx, cy, r) => g.append(el('path', { d: `M${cx + r * .35},${cy - r} A${r},${r} 0 1 0 ${cx + r},${cy + r * .45} A${r * .78},${r * .78} 0 0 1 ${cx + r * .35},${cy - r}Z` }, 'fill:var(--jm-moon)'));
+  const cloud = (g, dx, dy, k, op) => g.append(el('path', { d: 'M7 18h10.5a3.5 3.5 0 0 0 .4-7A5 5 0 0 0 8.3 9.6 4 4 0 0 0 7 18z', transform: `translate(${dx} ${dy}) scale(${k})` }, `fill:var(--jm-cloud);fill-opacity:${op}`));
+  function icon(code, hour) {
+    const k = kind(code);
+    const night = hour != null && (hour < 6 || hour >= 18);
+    const svg = el('svg', { viewBox: '0 0 24 24', role: 'img' });
+    const lab = k ? ((night && NIGHT[k]) || LABEL[k]) : '無資料';
+    const t = el('title', {}); t.textContent = lab; svg.append(t);
+    svg.setAttribute('aria-label', lab);
+    if (!k) return svg;
+    const g = el('g', {}); svg.append(g);
+    if (k === 'clear') { night ? moon(g, 12, 12, 6.5) : sun(g, 12, 12, 4.6); }
+    else if (k === 'partly') { night ? moon(g, 9, 8, 4.8) : sun(g, 8.5, 8.5, 3.4); cloud(g, 1.5, 2.5, .95, 1); }
+    else if (k === 'cloud') { cloud(g, -3, -3, 1.08, .7); cloud(g, 0, 0, 1, 1); }
+    else if (k === 'fog') { cloud(g, 0, -5, 1, .55); [14.5, 17.5, 20.5].forEach((y, i) => g.append(el('line', { x1: 4 + i * 1.5, x2: 20 - i, y1: y, y2: y, 'stroke-width': 1.8, 'stroke-linecap': 'round' }, 'stroke:var(--jm-cloud)'))); }
+    else {
+      cloud(g, 0, -4, 1, 1);
+      if (k === 'drizzle') [[8.5, 18], [12.5, 20], [16.5, 18]].forEach(([x, y]) => g.append(el('circle', { cx: x, cy: y, r: 1.2 }, 'fill:var(--jm-drop)')));
+      if (k === 'rain') [[8.5, 16.5], [12.5, 17.5], [16.5, 16.5]].forEach(([x, y]) => g.append(el('line', { x1: x, y1: y, x2: x - 1.6, y2: y + 4.5, 'stroke-width': 1.8, 'stroke-linecap': 'round' }, 'stroke:var(--jm-drop)')));
+      if (k === 'snow') [[8.5, 18], [12.5, 20.5], [16.5, 18]].forEach(([x, y]) => { g.append(el('line', { x1: x - 2, y1: y, x2: x + 2, y2: y, 'stroke-width': 1.3, 'stroke-linecap': 'round' }, 'stroke:var(--jm-drop)')); g.append(el('line', { x1: x, y1: y - 2, x2: x, y2: y + 2, 'stroke-width': 1.3, 'stroke-linecap': 'round' }, 'stroke:var(--jm-drop)')); });
+      if (k === 'thunder') g.append(el('path', { d: 'M13 14.5l-3.2 5h2.6l-1.2 4.2 4-5.8h-2.7l1.4-3.4z' }, 'fill:var(--jm-bolt)'));
+    }
+    return svg;
+  }
+  const textCode = t => !t ? null : /雷/.test(t) ? 95 : /雪/.test(t) ? 71 : /雨/.test(t) ? 61 : /霧/.test(t) ? 45
+    : /晴/.test(t) && /多雲|雲/.test(t) ? 2 : /晴/.test(t) ? 0 : /陰/.test(t) ? 3 : /多雲/.test(t) ? 2 : 3;
+  return { icon, kind, textCode, label: (c, h) => { const k = kind(c); if (!k) return '無資料'; const n = h != null && (h < 6 || h >= 18); return (n && NIGHT[k]) || LABEL[k]; } };
+})();
+
+window.jm = {
+  t: v => v == null ? '—' : (Math.round(v * 10) / 10).toFixed(1),
+  hm: s => s.slice(11, 16),
+  md: s => s.slice(5, 10).replace('-', '/'),
+  date: s => new Date(s + ':00Z'),
+  // 溫度色：0、5、10、15、20 °C 五個色階
+  color: (v) => {
+    const root = document.getElementById('dash-root') || document.documentElement;
+    const cs = getComputedStyle(root);
+    const stops = ['--jm-c0', '--jm-c5', '--jm-c10', '--jm-c15', '--jm-c20'].map(n => cs.getPropertyValue(n).trim());
+    const s = d3.scaleLinear([0, 5, 10, 15, 20], stops).interpolate(d3.interpolateRgb).clamp(true);
+    return v == null ? cs.getPropertyValue('--color-border-line').trim() : s(v);
+  }
+};
+</script>
+
+<script>
+const J = window.jm;
+window.jmView = 'real';
+const V = base => base + (window.jmView === 'm2' ? '_m2' : '');
+const cssv = n => getComputedStyle(document.getElementById('dash-root') || document.documentElement).getPropertyValue(n).trim();
+const mk = (src, field, where, text) => { const e = document.createElement('span'); e.dataset.source = src; e.dataset.field = field; if (where) e.dataset.where = where; e.textContent = text; return e; };
+
+function drawSummary() {
+  const s = dash.data(V('summary'));
+  document.querySelectorAll('.jm-take [data-field]').forEach(el => {
+    el.dataset.source = V('summary');
+    if (s.status !== 'ok') return;
+    el.classList.remove('dash-skeleton');
+    const v = (s.data[0] || {})[el.dataset.field];
+    el.textContent = v == null ? '—' : v;
+  });
+}
+
+function drawTiles() {
+  const box = document.getElementById('night-tiles');
+  box.dataset.source = V('nights');
+  box.textContent = '';
+  const s = dash.data(V('nights'));
+  if (s.status !== 'ok') { for (let i = 0; i < 3; i++) { const t = document.createElement('div'); t.className = 'jm-tile dash-skeleton'; box.append(t); } return; }
+  s.data.forEach(r => {
+    const w = 'segment=' + encodeURIComponent(r.segment);
+    const t = document.createElement('div'); t.className = 'jm-tile';
+    const k = document.createElement('div'); k.className = 'k'; k.textContent = r.segment + '・' + r.window;
+    const p = document.createElement('div'); p.className = 'p'; p.textContent = r.place;
+    const big = document.createElement('div'); big.className = 'big';
+    const sub = document.createElement('div'); sub.className = 'sub';
+    const useG = r.feels_min_gfs != null && (r.feels_min_ecmwf == null || r.feels_min_gfs <= r.feels_min_ecmwf);
+    const f = useG ? 'feels_min_gfs' : 'feels_min_ecmwf';
+    if (r[f] == null) {
+      t.classList.add('na');
+      big.textContent = '尚未涵蓋';
+      sub.textContent = '模式預報還沒到這一天，接近出發日會自動補上。';
+    } else {
+      t.style.setProperty('--jm-tone', J.color(r[f]));
+      big.append(mk(V('nights'), f, w, J.t(r[f])));
+      const u = document.createElement('small'); u.textContent = '°C 最低體感'; big.append(u);
+      const part = r.hours_gfs + r.hours_ecmwf > 0 && Math.max(r.hours_gfs, r.hours_ecmwf) < r.hours_total ? `（只涵蓋 ${Math.max(r.hours_gfs, r.hours_ecmwf)}/${r.hours_total} 小時）` : '';
+      const line1 = document.createElement('div');
+      line1.append(document.createTextNode('最低氣溫 '), mk(V('nights'), 'tmin_ecmwf', w, J.t(r.tmin_ecmwf)), document.createTextNode('｜'), mk(V('nights'), 'tmin_gfs', w, J.t(r.tmin_gfs)), document.createTextNode(' °C（ECMWF｜GFS）' + part));
+      const line2 = document.createElement('div');
+      line2.append(document.createTextNode('濕度最高 '), mk(V('nights'), 'rh_max_gfs', w, r.rh_max_gfs ?? '—'), document.createTextNode('%・降雨機率最高 '), mk(V('nights'), 'rainprob_max_gfs', w, r.rainprob_max_gfs ?? '—'), document.createTextNode('%・雨量 '), mk(V('nights'), 'rain_sum_gfs', w, r.rain_sum_gfs ?? '—'), document.createTextNode(' mm'));
+      sub.append(line1, line2);
+    }
+    const wc = r.wcode_max_gfs ?? r.wcode_max_ecmwf;
+    if (wc != null) {
+      const ic = window.jmWx.icon(wc, 0);
+      const wl = document.createElement('span'); wl.className = 'wxl';
+      wl.append(document.createTextNode('最差：' + window.jmWx.label(wc, 0) + '（' + (r.wcode_max_gfs != null ? 'GFS' : 'ECMWF') + '）'));
+      p.prepend(ic); p.append(wl);
+    }
+    t.append(k, p, big, sub);
+    box.append(t);
+  });
+}
+
+function drawSources() {
+  const s = dash.data('sources');
+  const tb = document.querySelector('#src-table tbody');
+  tb.textContent = '';
+  if (s.status !== 'ok') return;
+  s.data.forEach(r => {
+    const tr = document.createElement('tr');
+    ['source', 'last_forecast', 'queried_at', 'note'].forEach(k => { const td = document.createElement('td'); td.textContent = r[k] ?? ''; tr.appendChild(td); });
+    tb.appendChild(tr);
+  });
+}
+
+function drawDays() {
+  const box = document.getElementById('days');
+  box.dataset.source = V('checkpoints');
+  box.textContent = '';
+  const s = dash.data(V('checkpoints'));
+  if (s.status !== 'ok') { box.classList.add('dash-skeleton'); return; }
+  box.classList.remove('dash-skeleton');
+  const all = s.data.flatMap(r => [r.temp_ecmwf, r.temp_gfs, r.feels_ecmwf, r.feels_gfs]).filter(v => v != null);
+  const lo = Math.min(0, Math.floor((d3.min(all) ?? 0) / 5) * 5), hi = Math.max(20, Math.ceil((d3.max(all) ?? 20) / 5) * 5);
+  const pct = v => ((v - lo) / (hi - lo)) * 100;
+  // 共用刻度
+  const scale = document.createElement('div'); scale.className = 'jm-scale';
+  const ticks = document.createElement('div'); ticks.className = 'ticks';
+  for (let v = lo; v <= hi; v += 5) { const sp = document.createElement('span'); sp.style.left = pct(v) + '%'; sp.textContent = v + '°'; ticks.append(sp); }
+  const wxh = document.createElement('div'); wxh.className = 'wxh';
+  ['EC', 'GFS'].forEach(x => { const sp = document.createElement('span'); sp.textContent = x; wxh.append(sp); });
+  scale.append(document.createElement('span'), document.createElement('span'), wxh, ticks);
+  box.append(scale);
+  d3.group(s.data, d => d.day).forEach((rows, day) => {
+    const sec = document.createElement('div'); sec.className = 'jm-day';
+    const h = document.createElement('h3'); h.textContent = day + '　' + J.md(rows[0].time); sec.append(h);
+    rows.forEach(r => {
+      const w = 'time=' + encodeURIComponent(r.time);
+      const row = document.createElement('div'); row.className = 'jm-row';
+      const tm = document.createElement('div'); tm.className = 'jm-time'; tm.textContent = J.hm(r.time);
+      const ev = document.createElement('span'); ev.className = 'ev' + (/營地|出發|起登|下山/.test(r.event) ? ' camp' : ''); ev.textContent = r.event; tm.append(ev);
+      const pl = document.createElement('div'); pl.className = 'jm-place';
+      const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = r.place;
+      const meta = document.createElement('div'); meta.className = 'meta';
+      meta.append(mk(V('checkpoints'), 'elev_m', w, r.elev_m), document.createTextNode(' m'));
+      const rp = r.rainprob_gfs ?? r.rainprob_ecmwf, rf = r.rainprob_gfs != null ? 'rainprob_gfs' : 'rainprob_ecmwf';
+      const wd = r.wind_gfs ?? r.wind_ecmwf, wf = r.wind_gfs != null ? 'wind_gfs' : 'wind_ecmwf';
+      if (rp != null) meta.append(document.createTextNode('・雨 '), mk(V('checkpoints'), rf, w, rp), document.createTextNode('%・風 '), mk(V('checkpoints'), wf, w, J.t(wd)), document.createTextNode(' m/s'));
+      pl.append(nm, meta);
+      const th = document.createElement('div'); th.className = 'jm-thermo';
+      const rail = document.createElement('div'); rail.className = 'rail'; th.append(rail);
+      const z = document.createElement('div'); z.className = 'zero'; z.style.left = pct(0) + '%'; th.append(z);
+      const ts = [r.temp_ecmwf, r.temp_gfs].filter(v => v != null);
+      if (!ts.length) {
+        const na = document.createElement('div'); na.className = 'na'; na.textContent = '尚未涵蓋'; th.append(na);
+      } else {
+        const a = Math.min(...ts), b = Math.max(...ts);
+        const rng = document.createElement('div'); rng.className = 'rng';
+        rng.style.left = pct(a) + '%'; rng.style.width = Math.max(0, pct(b) - pct(a)) + '%';
+        rng.style.background = `linear-gradient(90deg, ${J.color(a)}, ${J.color(b)})`;
+        th.append(rng);
+        const fv = r.feels_gfs ?? r.feels_ecmwf, ff = r.feels_gfs != null ? 'feels_gfs' : 'feels_ecmwf';
+        if (fv != null) { const fd = document.createElement('div'); fd.className = 'feel'; fd.style.left = pct(fv) + '%'; fd.style.background = J.color(fv); fd.title = '體感 ' + J.t(fv) + ' °C'; th.append(fd); }
+        const lf = r.temp_gfs != null && (r.temp_ecmwf == null || r.temp_gfs <= r.temp_ecmwf) ? 'temp_gfs' : 'temp_ecmwf';
+        const v = mk(V('checkpoints'), lf, w, J.t(r[lf])); v.className = 'val'; v.style.left = Math.min(92, Math.max(8, pct(a))) + '%'; th.append(v);
+      }
+      const wx = document.createElement('div'); wx.className = 'jm-wx';
+      const hr = +r.time.slice(11, 13);
+      ['wcode_ecmwf', 'wcode_gfs'].forEach(f => {
+        if (r[f] == null) { const ph = document.createElement('span'); ph.className = 'ph'; ph.textContent = '·'; wx.append(ph); return; }
+        const ic = window.jmWx.icon(r[f], hr);
+        const holder = document.createElement('span'); holder.append(ic); holder.style.display = 'block';
+        holder.title = (f.endsWith('gfs') ? 'GFS：' : 'ECMWF：') + window.jmWx.label(r[f], hr);
+        wx.append(holder);
+      });
+      row.append(tm, pl, wx, th);
+      sec.append(row);
+    });
+    box.append(sec);
+  });
+}
+
+function drawChart() {
+  const el = document.getElementById('chart');
+  el.textContent = '';
+  el.dataset.source = V('route') + ' itinerary';
+  const R = dash.data(V('route')), I = dash.data('itinerary');
+  const SH = window.jmView === 'm2' ? -2 : 0;
+  if (R.status !== 'ok' || I.status !== 'ok') { el.classList.add('dash-skeleton'); return; }
+  el.classList.remove('dash-skeleton');
+  const route = R.data.map(d => ({ ...d, t: J.date(d.time) }));
+  const itin = I.data.map(d => { const t = J.date(d.time); t.setUTCDate(t.getUTCDate() + SH); return { ...d, t, time: t.toISOString().slice(0, 16) }; });
+  const W = Math.max(300, el.clientWidth), H = 430;
+  const m = { t: 58, r: 44, b: 90, l: 40 };
+  const t0 = route[0].t, t1 = route[route.length - 1].t;
+  const x = d3.scaleUtc([t0, t1], [m.l, W - m.r]);
+  const vals = route.flatMap(d => [d.temp_ecmwf, d.temp_gfs, d.feels_ecmwf, d.feels_gfs]).filter(v => v != null);
+  const y = d3.scaleLinear([Math.min(0, Math.floor(d3.min(vals) - 1)), Math.ceil(d3.max(vals) + 2)], [H - m.b, m.t]).nice();
+  const ye = d3.scaleLinear([1500, 3700], [H - m.b, m.t + 40]);
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', '行程海拔剖面上的逐時氣溫與體感溫度');
+  const ridge = cssv('--jm-ridge'), muted = cssv('--color-fg-muted'), grid = cssv('--cds-chart-grid');
+  const defs = svg.append('defs');
+  const rg = defs.append('linearGradient').attr('id', 'jm-ridge').attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 1);
+  [[0, .42], [.6, .18], [1, .04]].forEach(([o, a]) => rg.append('stop').attr('offset', o).attr('style', `stop-color:${ridge};stop-opacity:${a}`));
+  const tg = defs.append('linearGradient').attr('id', 'jm-temp').attr('gradientUnits', 'userSpaceOnUse').attr('x1', 0).attr('x2', 0).attr('y1', y(0)).attr('y2', y(20));
+  [0, 5, 10, 15, 20].forEach((v, i) => tg.append('stop').attr('offset', i / 4).attr('style', `stop-color:${J.color(v)}`));
+  defs.append('pattern').attr('id', 'jm-hatch').attr('width', 7).attr('height', 7).attr('patternUnits', 'userSpaceOnUse').attr('patternTransform', 'rotate(45)')
+    .append('line').attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 7).attr('stroke', muted).attr('stroke-width', 1.2).attr('stroke-opacity', .35);
+
+  // 營地過夜區
+  const nights = [];
+  itin.forEach((d, i) => { if (d.event === '抵達營地') { const nx = itin.slice(i + 1).find(e => e.event === '拔營出發'); if (nx) nights.push({ a: d.t, b: nx.t, place: d.place }); } });
+  svg.append('g').selectAll('rect').data(nights).join('rect').attr('x', d => x(d.a)).attr('width', d => x(d.b) - x(d.a)).attr('y', m.t).attr('height', H - m.b - m.t).attr('fill', ridge).attr('fill-opacity', .12);
+  svg.append('g').selectAll('text').data(nights).join('text').attr('x', d => (x(d.a) + x(d.b)) / 2).attr('y', m.t + 14).attr('text-anchor', 'middle').text(d => d.place.replace('營地', '') + ' 過夜');
+
+  // 海拔剖面（行程點連線）
+  const prof = [{ t: t0, elev_m: itin[0].elev_m }, ...itin, { t: t1, elev_m: itin[itin.length - 1].elev_m }];
+  svg.append('path').datum(prof).attr('d', d3.area().x(d => x(d.t)).y0(H - m.b).y1(d => ye(d.elev_m))).attr('fill', 'url(#jm-ridge)');
+  svg.append('path').datum(prof).attr('d', d3.line().x(d => x(d.t)).y(d => ye(d.elev_m))).attr('fill', 'none').attr('stroke', ridge).attr('stroke-opacity', .55).attr('stroke-width', 1);
+  [2000, 3000].forEach(v => svg.append('text').attr('class', 'ridge-lbl').attr('x', W - m.r + 6).attr('y', ye(v) + 3).text(v + ' m'));
+  // 最高點標示
+  const top = itin.reduce((a, b) => b.elev_m > a.elev_m ? b : a);
+  svg.append('text').attr('class', 'ridge-lbl').attr('x', x(top.t)).attr('y', ye(top.elev_m) - 6).attr('text-anchor', 'middle').text(top.place + ' ' + top.elev_m);
+
+  // 尚未涵蓋
+  const covered = route.filter(d => d.temp_gfs != null || d.temp_ecmwf != null);
+  const lastCov = covered.length ? covered[covered.length - 1].t : t0;
+  if (lastCov < t1) {
+    svg.append('rect').attr('x', x(lastCov)).attr('width', W - m.r - x(lastCov)).attr('y', m.t).attr('height', H - m.b - m.t).attr('fill', 'url(#jm-hatch)');
+    svg.append('text').attr('class', 'strong').attr('x', (x(lastCov) + W - m.r) / 2).attr('y', y((y.domain()[0] + y.domain()[1]) / 2)).attr('text-anchor', 'middle').text('尚未有預報');
+  }
+
+  // 溫度格線
+  const yt = y.ticks(5);
+  svg.append('g').selectAll('line').data(yt).join('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', d => y(d)).attr('y2', d => y(d))
+    .attr('stroke', d => d === 0 ? muted : grid).attr('stroke-width', 1).attr('stroke-dasharray', d => d === 0 ? '3 3' : null).attr('stroke-opacity', d => d === 0 ? .6 : 1);
+  svg.append('g').selectAll('text').data(yt).join('text').attr('x', m.l - 6).attr('y', d => y(d) + 4).attr('text-anchor', 'end').text(d => d + '°');
+
+  // 日期與時間軸
+  const days = d3.utcDay.range(d3.utcDay.ceil(t0), t1);
+  svg.append('g').selectAll('line').data(days).join('line').attr('x1', d => x(d)).attr('x2', d => x(d)).attr('y1', m.t).attr('y2', H - m.b).attr('stroke', cssv('--cds-chart-axis')).attr('stroke-width', 1);
+  const hrs = d3.utcHour.every(6).range(t0, d3.utcHour.offset(t1, 1)).filter(d => d.getUTCHours() !== 0);
+  svg.append('g').selectAll('text').data(hrs).join('text').attr('x', d => x(d)).attr('y', H - m.b + 14).attr('text-anchor', 'middle').text(d => String(d.getUTCHours()).padStart(2, '0'));
+  const dstarts = [t0, ...days];
+  svg.append('g').selectAll('text').data(dstarts).join('text').attr('class', 'strong').attr('x', (d, i) => i === 0 ? m.l : x(d) + 4).attr('y', H - m.b + 30)
+    .text((d, i) => `DAY ${i + 1}・${d.getUTCMonth() + 1}/${d.getUTCDate()}`);
+
+  // 線
+  const line = k => d3.line().defined(d => d[k] != null).x(d => x(d.t)).y(d => y(d[k]));
+  svg.append('path').datum(route).attr('d', line('temp_ecmwf')).attr('fill', 'none').attr('stroke', muted).attr('stroke-opacity', .75).attr('stroke-width', 1.5).attr('stroke-linejoin', 'round');
+  svg.append('path').datum(route).attr('d', line('feels_gfs')).attr('fill', 'none').attr('stroke', 'url(#jm-temp)').attr('stroke-width', 1.6).attr('stroke-dasharray', '4 3');
+  const main = svg.append('path').datum(route).attr('d', line('temp_gfs')).attr('fill', 'none').attr('stroke', 'url(#jm-temp)').attr('stroke-width', 3).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round');
+  const len = main.node().getTotalLength();
+  main.attr('class', 'jm-line').attr('stroke-dasharray', `${len} ${len}`).style('--len', len);
+
+  // 行程點：頂端點列＋重點事件文字
+  const g = svg.append('g');
+  itin.forEach(d => {
+    const key = /起登|抵達營地|拔營出發|下山|日出/.test(d.event);
+    g.append('line').attr('x1', x(d.t)).attr('x2', x(d.t)).attr('y1', m.t - 8).attr('y2', ye(d.elev_m)).attr('stroke', muted).attr('stroke-opacity', key ? .35 : .15).attr('stroke-dasharray', '2 3');
+    g.append('circle').attr('cx', x(d.t)).attr('cy', ye(d.elev_m)).attr('r', key ? 3.5 : 2.5).attr('fill', cssv('--color-panel')).attr('stroke', ridge).attr('stroke-width', 1.5);
+  });
+  const key = itin.filter(d => /起登|抵達營地|拔營出發|下山|日出/.test(d.event));
+  const lastX = [-1e9, -1e9];
+  key.forEach(d => {
+    const px = x(d.t);
+    const row = px - lastX[0] > 76 ? 0 : 1;
+    const lab = d.event.replace('抵達營地', '抵達').replace('拔營出發', '出發') + ' ' + J.hm(d.time);
+    const tx = g.append('text').attr('x', px).attr('y', row === 0 ? m.t - 34 : m.t - 18).attr('text-anchor', 'middle').attr('class', 'strong').text(lab);
+    const bb = tx.node().getBBox();
+    if (bb.x < 2) tx.attr('text-anchor', 'start').attr('x', 2);
+    if (bb.x + bb.width > W - 2) tx.attr('text-anchor', 'end').attr('x', W - 2);
+    lastX[row] = px;
+  });
+
+  // 天氣小圖示（兩列：ECMWF、GFS）
+  const step = W >= 760 ? 2 : W >= 480 ? 3 : 4;
+  const icoSize = W >= 480 ? 16 : 14;
+  const samp = route.filter(d => d.t.getUTCHours() % step === 0);
+  [['ECMWF', 'wcode_ecmwf', H - m.b + 46], ['GFS', 'wcode_gfs', H - m.b + 68]].forEach(([lab, f, yy]) => {
+    svg.append('text').attr('x', 2).attr('y', yy + 4).text(lab === 'ECMWF' ? 'EC' : 'GFS');
+    const gg = svg.append('g');
+    samp.forEach(d => {
+      if (d[f] == null) { gg.append('circle').attr('cx', x(d.t)).attr('cy', yy).attr('r', 1.2).attr('fill', muted).attr('fill-opacity', .5); return; }
+      const ic = window.jmWx.icon(d[f], d.t.getUTCHours());
+      ic.setAttribute('x', x(d.t) - icoSize / 2); ic.setAttribute('y', yy - icoSize / 2);
+      ic.setAttribute('width', icoSize); ic.setAttribute('height', icoSize);
+      gg.node().append(ic);
+    });
+  });
+
+  // 互動
+  const tip = d3.select(el).append('div').attr('class', 'jm-tip').attr('hidden', true);
+  const hover = svg.append('g').attr('pointer-events', 'none');
+  const rule = hover.append('line').attr('y1', m.t).attr('y2', H - m.b).attr('stroke', muted).attr('stroke-opacity', 0);
+  const dot = hover.append('circle').attr('r', 5).attr('stroke', cssv('--color-panel')).attr('stroke-width', 2).attr('opacity', 0);
+  const bis = d3.bisector(d => d.t).center;
+  const show = (ev) => {
+    const [mx] = d3.pointer(ev, svg.node());
+    const d = route[bis(route, x.invert(mx))];
+    if (!d) return;
+    rule.attr('x1', x(d.t)).attr('x2', x(d.t)).attr('stroke-opacity', .6);
+    if (d.temp_gfs != null) dot.attr('cx', x(d.t)).attr('cy', y(d.temp_gfs)).attr('fill', J.color(d.temp_gfs)).attr('opacity', 1); else dot.attr('opacity', 0);
+    tip.attr('hidden', null).text('');
+    tip.append('div').attr('class', 't').text(`${J.md(d.time)} ${J.hm(d.time)}・${d.place} ${d.elev_m} m`);
+    if (d.temp_gfs == null && d.temp_ecmwf == null) tip.append('div').text('尚未有預報');
+    else {
+      tip.append('div').text(`天氣 ECMWF ${window.jmWx.label(d.wcode_ecmwf, d.t.getUTCHours())}｜GFS ${window.jmWx.label(d.wcode_gfs, d.t.getUTCHours())}`);
+      tip.append('div').text(`氣溫 ECMWF ${J.t(d.temp_ecmwf)}｜GFS ${J.t(d.temp_gfs)} °C`);
+      tip.append('div').text(`體感 ECMWF ${J.t(d.feels_ecmwf)}｜GFS ${J.t(d.feels_gfs)} °C`);
+      tip.append('div').text(`濕度 ${d.rh_gfs ?? d.rh_ecmwf ?? '—'}%・降雨機率 ${d.rainprob_gfs ?? d.rainprob_ecmwf ?? '—'}%`);
+      tip.append('div').text(`雨量 ${d.rain_mm_gfs ?? d.rain_mm_ecmwf ?? '—'} mm・風 ${J.t(d.wind_gfs ?? d.wind_ecmwf)} m/s`);
+    }
+    const cw = el.clientWidth, tw = tip.node().offsetWidth, px = x(d.t) * (cw / W);
+    tip.style('left', Math.max(0, Math.min(cw - tw, px + 12)) + 'px').style('top', '6px');
+  };
+  svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', W - m.l - m.r).attr('height', H - m.t - m.b).attr('fill', 'transparent')
+    .on('pointermove', show).on('pointerdown', show)
+    .on('pointerleave', () => { tip.attr('hidden', true); rule.attr('stroke-opacity', 0); dot.attr('opacity', 0); });
+}
+
+(() => {
+  const k = document.getElementById('icon-key');
+  [[0, 12, '晴'], [0, 22, '晴（夜）'], [2, 12, '晴時多雲'], [3, 12, '陰'], [45, 12, '霧'], [51, 12, '毛毛雨'], [61, 12, '雨'], [95, 12, '雷雨']].forEach(([c, h, l]) => {
+    const sp = document.createElement('span'); sp.append(window.jmWx.icon(c, h), document.createTextNode(l)); k.append(sp);
+  });
+})();
+function drawCwa() {
+  const st = document.getElementById('cwa-status'); st.textContent = '';
+  const tb = document.querySelector('#cwa-table tbody'); tb.textContent = '';
+  const s = dash.data('cwa_week');
+  if (s.status !== 'ok') return;
+  const rows = s.data;
+  const dates = [...new Set(rows.map(r => r.date))].sort();
+  const last = dates[dates.length - 1];
+  const trip = ['2026-11-06', '2026-11-07', '2026-11-08'];
+  const pill = (txt, ok) => { const p = document.createElement('span'); p.className = 'jm-pill' + (ok ? ' ok' : ''); p.textContent = txt; st.append(p); };
+  pill('最遠到 ' + (last ? last.slice(5).replace('-', '/') : '—'));
+  trip.forEach(d => pill(d.slice(5).replace('-', '/') + (dates.includes(d) ? ' 已涵蓋' : ' 尚未涵蓋'), dates.includes(d)));
+  const pts = ['E041', 'D058', 'D055'];
+  const wk = ['日', '一', '二', '三', '四', '五', '六'];
+  dates.forEach(d => ['白天', '晚上'].forEach(per => {
+    const tr = document.createElement('tr');
+    if (per === '晚上') tr.classList.add('night');
+    if (trip.includes(d)) tr.classList.add('trip');
+    const sl = document.createElement('td'); sl.className = 'slot';
+    const dt = new Date(d + 'T00:00:00Z');
+    const b = document.createElement('b'); b.textContent = d.slice(5).replace('-', '/') + '（' + wk[dt.getUTCDay()] + '）';
+    sl.append(b, document.createTextNode(per)); tr.append(sl);
+    pts.forEach(p => {
+      const td = document.createElement('td');
+      const r = rows.find(x => x.point_id === p && x.date === d && x.period === per);
+      if (!r) { td.textContent = '—'; tr.append(td); return; }
+      const w = 'key=' + encodeURIComponent(r.key);
+      const cell = document.createElement('div'); cell.className = 'jm-cell';
+      const ic = window.jmWx.icon(window.jmWx.textCode(r.wx), per === '晚上' ? 22 : 12);
+      ic.querySelector('title').textContent = r.wx;
+      const box = document.createElement('div');
+      const tt = document.createElement('span'); tt.className = 'tt';
+      tt.append(mk('cwa_week', 'min_t', w, r.min_t), document.createTextNode('–'), mk('cwa_week', 'max_t', w, r.max_t), document.createTextNode('°'));
+      const pp = document.createElement('span'); pp.className = 'pp';
+      pp.append(mk('cwa_week', 'wx', w, r.wx), document.createTextNode('・體感 '), mk('cwa_week', 'min_at', w, r.min_at), document.createTextNode('°・雨 '));
+      pp.append(r.pop == null ? document.createTextNode('未提供') : mk('cwa_week', 'pop', w, r.pop + '%'));
+      box.append(tt, pp);
+      cell.append(ic, box); td.append(cell); tr.append(td);
+    });
+    tb.append(tr);
+  }));
+}
+
+function drawRain() {
+  const tb = document.querySelector('#rain-table tbody'); tb.textContent = '';
+  const s = dash.data('rain_obs');
+  const tm = document.getElementById('rain-time');
+  if (s.status !== 'ok') return;
+  const t0 = s.data[0]?.observed_at;
+  tm.textContent = t0 ? t0.slice(5, 10).replace('-', '/') + ' ' + t0.slice(11, 16) : '—';
+  s.data.forEach(r => {
+    const tr = document.createElement('tr'); tr.dataset.key = r.station_id;
+    const c0 = document.createElement('td'); c0.textContent = r.station_id; c0.title = r.station;
+    c0.textContent = r.station + '（' + r.station_id + '）'; tr.dataset.key = r.station_id;
+    tr.append(c0);
+    ['h1', 'h3', 'h24', 'today', 'd2', 'd3', 'd4', 'd5'].forEach(k => {
+      const td = document.createElement('td');
+      td.textContent = r[k] == null ? '－' : r[k].toFixed(1);
+      if (r[k] != null && r[k] >= 50) td.className = 'hi';
+      tr.append(td);
+    });
+    tb.append(tr);
+  });
+}
+
+function drawAssessment() {
+  const box = document.getElementById('assess-box');
+  const tm = document.getElementById('assess-time');
+  box.textContent = '';
+  const s = dash.data('assessment');
+  if (s.status !== 'ok' || !s.data.length) { tm.textContent = '—'; const d = document.createElement('div'); d.className = 'dash-skeleton'; d.style.minHeight = '6rem'; box.append(d); return; }
+  const LV = { good: '看起來還好', caution: '要留意', bad: '目前不行', unknown: '還看不準' };
+  const rows = s.data.slice().sort((a, b) => Number(a.order) - Number(b.order));
+  const W = r => 'id=' + encodeURIComponent(r.id);
+  const lvCls = r => 'lv-' + (LV[r.level] ? r.level : 'unknown');
+  const ov = rows.find(r => r.id === 'overall');
+  const t0 = ov ? ov.assessed_at : rows[0].assessed_at;
+  tm.textContent = t0 ? String(t0).slice(5, 10).replace('-', '/') + ' ' + String(t0).slice(11, 16) : '—';
+  if (ov) {
+    const d = document.createElement('div'); d.className = 'ov ' + lvCls(ov);
+    const h = document.createElement('p'); h.className = 'hl'; h.append(mk('assessment', 'headline', W(ov), ov.headline || '—'));
+    const p = document.createElement('p'); p.className = 'dt'; p.append(mk('assessment', 'detail', W(ov), ov.detail || ''));
+    d.append(h, p); box.append(d);
+  }
+  const ul = document.createElement('ul');
+  rows.filter(r => r.id !== 'overall').forEach(r => {
+    const li = document.createElement('li'); li.className = lvCls(r);
+    const tp = document.createElement('div'); tp.className = 'tp';
+    const dot = document.createElement('span'); dot.className = 'dot';
+    const lv = document.createElement('span'); lv.className = 'lv'; lv.textContent = LV[r.level] || LV.unknown;
+    tp.append(dot, mk('assessment', 'topic', W(r), r.topic || ''), lv);
+    const h = document.createElement('div'); h.className = 'hl'; h.append(mk('assessment', 'headline', W(r), r.headline || '—'));
+    const p = document.createElement('div'); p.className = 'dt'; p.append(mk('assessment', 'detail', W(r), r.detail || ''));
+    const b = document.createElement('div'); b.className = 'bs'; b.append('依據：', mk('assessment', 'basis', W(r), r.basis || ''));
+    li.append(tp, h, p, b); ul.append(li);
+  });
+  box.append(ul);
+}
+
+const drawAll = () => { drawAssessment(); drawSummary(); drawTiles(); drawChart(); drawDays(); drawCwa(); drawRain(); drawSources(); };
+const setView = v => {
+  window.jmView = v;
+  document.getElementById('v-real').setAttribute('aria-pressed', String(v === 'real'));
+  document.getElementById('v-m2').setAttribute('aria-pressed', String(v === 'm2'));
+  document.getElementById('m2-banner').hidden = v !== 'm2';
+  document.getElementById('title').textContent = v === 'm2' ? '嘉明湖沿線氣溫（提前兩天試算）' : '嘉明湖沿線氣溫';
+  drawAll();
+};
+document.getElementById('v-real').addEventListener('click', () => setView('real'));
+document.getElementById('v-m2').addEventListener('click', () => setView('m2'));
+// 提前兩天試算只到 10/23 為止，10/24 起隱藏切換鈕，只看實際行程
+if (Date.now() >= Date.parse('2026-10-24T00:00:00+08:00')) {
+  window.jmView = 'real';
+  document.querySelector('.jm-view').hidden = true;
+  document.getElementById('m2-banner').hidden = true;
+}
+dash.onData(drawAll);
+</script>
+
+<p class="site-foot">資料更新時間：<span id="site-updated">—</span>（每天中午自動更新）。數字為中央氣象署與 Open-Meteo（ECMWF、GFS）的預報，實際以現場與官方公告為準。</p>
+</div>
+</body>
+</html>
