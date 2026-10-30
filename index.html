@@ -244,6 +244,133 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
     <div class="jm-key" id="camp-key"></div>
   </section>
 
+  <style>
+  .jm-stars { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); }
+  .jm-star { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); display: grid; gap: 8px; align-content: start; min-width: 0; }
+  .jm-star .hd { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .jm-star .sg { font-weight: 600; }
+  .jm-star .pl { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .jm-star .lv { font-size: var(--cds-font-size-caption); border-radius: 999px; padding: 1px 10px; background: color-mix(in srgb, var(--jm-sl) 20%, transparent); color: var(--color-fg); white-space: nowrap; }
+  .jm-star.s-good { --jm-sl: var(--color-ok); } .jm-star.s-split, .jm-star.s-fair { --jm-sl: var(--color-warn); } .jm-star.s-bad { --jm-sl: var(--color-bad); } .jm-star.s-na { --jm-sl: var(--color-fg-muted); }
+  .jm-star .why { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.6; font-variant-numeric: tabular-nums; }
+  .jm-strip { display: grid; gap: 2px; font-size: 10px; font-variant-numeric: tabular-nums; }
+  .jm-strip .r { display: grid; grid-template-columns: 2.2rem repeat(var(--n), minmax(0, 1fr)); gap: 2px; align-items: center; }
+  .jm-strip .lb { color: var(--color-fg-muted); }
+  .jm-strip .c { height: 22px; border-radius: 3px; display: grid; place-items: center; color: var(--color-fg); background: color-mix(in srgb, var(--jm-ridge) var(--p), transparent); }
+  .jm-strip .c.na { background: none; border: 1px dashed var(--color-border-line); color: var(--color-fg-muted); }
+  .jm-strip .h { text-align: center; color: var(--color-fg-muted); }
+  .jm-strip .h.cut { border-left: 1px solid var(--color-fg-muted); }
+  .jm-star .sky { font-size: var(--cds-font-size-caption); line-height: 1.6; border-top: 1px dashed var(--color-border-line); padding-top: 8px; }
+  .jm-star .sky span { display: block; }
+  .jm-star .sky .mut { color: var(--color-fg-muted); }
+  </style>
+  <section class="jm-card" id="stargazing">
+    <h2>觀星條件</h2>
+    <p class="jm-note">剛好接近新月，三個晚上整夜都沒有月光干擾，能不能看到星星全看雲。格子是兩個模式每小時預報的雲量（%），越深代表雲越多。燈號規則：兩個模式都在 30% 以下是「有機會」，都在 70% 以上是「不樂觀」，一個晴一個陰就是「模式分歧」。模式說的低雲，在 3,000 m 以上的營地有時其實是腳下的雲海，傍晚起霧、半夜過後雲往下沉也很常見，所以後半夜值得再起來看一次。</p>
+    <div class="jm-stars" id="star-cards" data-source="stargaze sky"></div>
+  </section>
+  <script>
+  dash.calc('stargaze_hourly', {
+    title: '觀星時段逐時雲量',
+    description: '三個觀星時段裡，每小時 ECMWF 與 GFS 的總雲量。',
+    inputs: ['sky', 'route'],
+    fn: (sky, route) => {
+      const out = [];
+      sky.forEach(s => {
+        [['front', s.front_from, s.front_to], ['back', s.back_from, s.back_to]].forEach(([half, a, b]) => {
+          if (!a || !b) return;
+          route.filter(r => r.time >= a && r.time <= b).forEach(r => out.push({
+            key: s.id + ' ' + r.time, sky_id: s.id, half, time: r.time,
+            cloud_ecmwf: r.cloud_ecmwf ?? null, cloud_gfs: r.cloud_gfs ?? null }));
+        });
+      });
+      return out;
+    }
+  });
+  dash.calc('stargaze', {
+    title: '觀星燈號',
+    description: '每個時段兩個模式的平均雲量與燈號：都 ≤30% 有機會、都 ≥70% 不樂觀、一晴一陰模式分歧，其餘普通；前後半夜取較好的一段。',
+    inputs: ['sky', 'stargaze_hourly'],
+    fn: (sky, hourly) => {
+      const avg = (rs, k) => { const v = rs.map(r => r[k]).filter(x => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+      const lv = (e, g) => e == null || g == null ? 'na' : (e <= 30 && g <= 30) ? 'good' : (e >= 70 && g >= 70) ? 'bad' : ((e <= 30 && g >= 70) || (g <= 30 && e >= 70)) ? 'split' : 'fair';
+      const rank = { good: 0, split: 1, fair: 2, bad: 3, na: 4 };
+      return sky.map(s => {
+        const f = hourly.filter(r => r.sky_id === s.id && r.half === 'front');
+        const b = hourly.filter(r => r.sky_id === s.id && r.half === 'back');
+        const fe = avg(f, 'cloud_ecmwf'), fg = avg(f, 'cloud_gfs'), be = avg(b, 'cloud_ecmwf'), bg = avg(b, 'cloud_gfs');
+        const lf = lv(fe, fg), lb = b.length ? lv(be, bg) : null;
+        const level = lb && rank[lb] < rank[lf] ? lb : lf;
+        return { id: s.id, front_ecmwf: fe, front_gfs: fg, back_ecmwf: be, back_gfs: bg, front_level: lf, back_level: lb, level,
+          best: lb && rank[lb] < rank[lf] ? 'back' : 'front' };
+      });
+    }
+  });
+  (() => {
+    const LBL = { good: '有機會', split: '模式分歧', fair: '普通', bad: '不樂觀', na: '模式還沒算到' };
+    const tag = (src, field, where, text) => { const e = document.createElement('span'); e.dataset.source = src; e.dataset.field = field; if (where) e.dataset.where = where; e.textContent = text; return e; };
+    function draw() {
+      const box = document.getElementById('star-cards');
+      box.textContent = '';
+      const S = dash.data('sky'), G = dash.data('stargaze'), H = dash.data('stargaze_hourly');
+      if (S.status !== 'ok' || G.status !== 'ok' || H.status !== 'ok') {
+        for (let i = 0; i < 3; i++) { const d = document.createElement('div'); d.className = 'jm-star dash-skeleton'; d.style.minHeight = '12rem'; box.append(d); }
+        return;
+      }
+      S.data.slice().sort((a, b) => Number(a.order) - Number(b.order)).forEach(s => {
+        const g = G.data.find(r => r.id === s.id) || {};
+        const w = 'id=' + encodeURIComponent(s.id);
+        const card = document.createElement('div'); card.className = 'jm-star s-' + (g.level || 'na');
+        const hd = document.createElement('div'); hd.className = 'hd';
+        const t = document.createElement('div');
+        const sg = document.createElement('div'); sg.className = 'sg'; sg.append(tag('sky', 'segment', w, s.segment));
+        const pl = document.createElement('div'); pl.className = 'pl'; pl.append(tag('sky', 'place', w, s.place));
+        t.append(sg, pl);
+        const lv = document.createElement('span'); lv.className = 'lv'; lv.append(tag('stargaze', 'level', w, LBL[g.level] || LBL.na));
+        hd.append(t, lv);
+        // 平均雲量說明
+        const why = document.createElement('div'); why.className = 'why';
+        const pct = v => v == null ? '—' : v + '%';
+        const line = (half, lab) => {
+          const d = document.createElement('div');
+          d.append(document.createTextNode(lab + '平均雲量 ECMWF '), tag('stargaze', half + '_ecmwf', w, pct(g[half + '_ecmwf'])),
+            document.createTextNode('｜GFS '), tag('stargaze', half + '_gfs', w, pct(g[half + '_gfs'])),
+            document.createTextNode('・' + (LBL[g[half + '_level']] || LBL.na)));
+          return d;
+        };
+        why.append(line('front', (s.front_label || '') + ' '));
+        if (s.back_from) why.append(line('back', (s.back_label || '') + ' '));
+        // 逐時雲量格
+        const rows = H.data.filter(r => r.sky_id === s.id);
+        const strip = document.createElement('div'); strip.className = 'jm-strip'; strip.dataset.source = 'stargaze_hourly';
+        strip.style.setProperty('--n', Math.max(1, rows.length));
+        const mkRow = (lab, k) => {
+          const r = document.createElement('div'); r.className = 'r';
+          const l = document.createElement('span'); l.className = 'lb'; l.textContent = lab; r.append(l);
+          rows.forEach(x => { const c = document.createElement('span'); c.className = 'c';
+            if (x[k] == null) { c.classList.add('na'); c.textContent = '·'; } else { c.style.setProperty('--p', Math.round(x[k]) + '%'); c.textContent = Math.round(x[k]); }
+            c.title = x.time.slice(11, 16) + '・' + (k === 'cloud_ecmwf' ? 'ECMWF' : 'GFS') + ' 雲量 ' + (x[k] == null ? '無資料' : Math.round(x[k]) + '%');
+            r.append(c); });
+          return r;
+        };
+        const hr = document.createElement('div'); hr.className = 'r';
+        hr.append(document.createElement('span'));
+        rows.forEach((x, i) => { const h = document.createElement('span'); h.className = 'h' + (i > 0 && x.half !== rows[i - 1].half ? ' cut' : ''); h.textContent = x.time.slice(11, 13); hr.append(h); });
+        strip.append(mkRow('EC', 'cloud_ecmwf'), mkRow('GFS', 'cloud_gfs'), hr);
+        // 天空
+        const sky = document.createElement('div'); sky.className = 'sky';
+        const a = document.createElement('span'); a.append(tag('sky', 'moon', w, s.moon));
+        const b = document.createElement('span'); b.append(tag('sky', 'highlight', w, s.highlight));
+        const c = document.createElement('span'); c.className = 'mut'; c.append(tag('sky', 'dark', w, s.dark));
+        sky.append(a, b, c);
+        card.append(hd, why, strip, sky);
+        box.append(card);
+      });
+    }
+    dash.onData(draw);
+  })();
+  </script>
+
   <section class="jm-card" id="route-chart">
     <h2>整趟路的氣溫，疊在山形上看</h2>
     <p class="jm-note">背景是行程的海拔剖面，線是每個小時你所在地點的預報氣溫，越往上越暖、顏色越藍越冷。灰底是在營地過夜，斜線是還沒有預報。底下兩排小圖示是兩個模式的天氣型態，兩者常常不一致。點圖可看該小時數值。</p>
