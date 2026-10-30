@@ -202,6 +202,20 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
 .jm-sw2 { width: 20px; height: 0; border-top: 2px solid; display: inline-block; }
 .jm-sw2.d { border-top-style: dashed; }
 .jm-bar { width: 10px; height: 10px; display: inline-block; border-radius: 2px; opacity: .55; }
+.jm-stars { display: grid; gap: var(--cds-gap-lg); grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+.jm-star { min-width: 0; display: grid; gap: var(--cds-gap-xs); align-content: start; }
+.jm-star h3 { font-size: var(--cds-font-size-body); font-weight: 600; margin: 0; }
+.jm-star .fact { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.6; font-variant-numeric: tabular-nums; margin: 0; }
+.jm-star .fact b { color: var(--color-fg); font-weight: 600; }
+.jm-star .best { font-size: var(--cds-font-size-body); line-height: 1.5; margin: 0; }
+.jm-star .best b { font-weight: 600; }
+.jm-star-grid svg text { fill: var(--color-fg-muted); font-size: 10px; font-family: var(--font-anthropic-sans); font-variant-numeric: tabular-nums; }
+.jm-star-grid svg text.in { font-size: 9px; }
+.jm-star dl { margin: 0; display: grid; gap: 4px; font-size: var(--cds-font-size-caption); line-height: 1.6; }
+.jm-star dt { font-weight: 600; color: var(--color-fg); }
+.jm-star dd { margin: 0 0 4px; color: var(--color-fg-muted); }
+.jm-star.dash-skeleton { min-height: 220px; border-radius: var(--cds-radius); }
+.jm-cell2 { width: 12px; height: 10px; display: inline-block; border-radius: 2px; }
 .jm-assess { display: grid; gap: var(--cds-gap-md); }
 .jm-assess .ov { border-left: 4px solid var(--jm-lv, var(--color-border-line)); padding: var(--cds-pad-xs) 0 var(--cds-pad-xs) var(--cds-pad-md); }
 .jm-assess .ov .hl { font-family: var(--font-anthropic-serif); font-size: calc(var(--cds-font-size-heading) * 1.15); line-height: 1.4; margin: 0; text-wrap: pretty; }
@@ -243,133 +257,6 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
     <div class="jm-camps" id="camp-charts" data-source="camp_hourly"></div>
     <div class="jm-key" id="camp-key"></div>
   </section>
-
-  <style>
-  .jm-stars { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); }
-  .jm-star { border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md); display: grid; gap: 8px; align-content: start; min-width: 0; }
-  .jm-star .hd { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-  .jm-star .sg { font-weight: 600; }
-  .jm-star .pl { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
-  .jm-star .lv { font-size: var(--cds-font-size-caption); border-radius: 999px; padding: 1px 10px; background: color-mix(in srgb, var(--jm-sl) 20%, transparent); color: var(--color-fg); white-space: nowrap; }
-  .jm-star.s-good { --jm-sl: var(--color-ok); } .jm-star.s-split, .jm-star.s-fair { --jm-sl: var(--color-warn); } .jm-star.s-bad { --jm-sl: var(--color-bad); } .jm-star.s-na { --jm-sl: var(--color-fg-muted); }
-  .jm-star .why { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.6; font-variant-numeric: tabular-nums; }
-  .jm-strip { display: grid; gap: 2px; font-size: 10px; font-variant-numeric: tabular-nums; }
-  .jm-strip .r { display: grid; grid-template-columns: 2.2rem repeat(var(--n), minmax(0, 1fr)); gap: 2px; align-items: center; }
-  .jm-strip .lb { color: var(--color-fg-muted); }
-  .jm-strip .c { height: 22px; border-radius: 3px; display: grid; place-items: center; color: var(--color-fg); background: color-mix(in srgb, var(--jm-ridge) var(--p), transparent); }
-  .jm-strip .c.na { background: none; border: 1px dashed var(--color-border-line); color: var(--color-fg-muted); }
-  .jm-strip .h { text-align: center; color: var(--color-fg-muted); }
-  .jm-strip .h.cut { border-left: 1px solid var(--color-fg-muted); }
-  .jm-star .sky { font-size: var(--cds-font-size-caption); line-height: 1.6; border-top: 1px dashed var(--color-border-line); padding-top: 8px; }
-  .jm-star .sky span { display: block; }
-  .jm-star .sky .mut { color: var(--color-fg-muted); }
-  </style>
-  <section class="jm-card" id="stargazing">
-    <h2>觀星條件</h2>
-    <p class="jm-note">剛好接近新月，三個晚上整夜都沒有月光干擾，能不能看到星星全看雲。格子是兩個模式每小時預報的雲量（%），越深代表雲越多。燈號規則：兩個模式都在 30% 以下是「有機會」，都在 70% 以上是「不樂觀」，一個晴一個陰就是「模式分歧」。模式說的低雲，在 3,000 m 以上的營地有時其實是腳下的雲海，傍晚起霧、半夜過後雲往下沉也很常見，所以後半夜值得再起來看一次。</p>
-    <div class="jm-stars" id="star-cards" data-source="stargaze sky"></div>
-  </section>
-  <script>
-  dash.calc('stargaze_hourly', {
-    title: '觀星時段逐時雲量',
-    description: '三個觀星時段裡，每小時 ECMWF 與 GFS 的總雲量。',
-    inputs: ['sky', 'route'],
-    fn: (sky, route) => {
-      const out = [];
-      sky.forEach(s => {
-        [['front', s.front_from, s.front_to], ['back', s.back_from, s.back_to]].forEach(([half, a, b]) => {
-          if (!a || !b) return;
-          route.filter(r => r.time >= a && r.time <= b).forEach(r => out.push({
-            key: s.id + ' ' + r.time, sky_id: s.id, half, time: r.time,
-            cloud_ecmwf: r.cloud_ecmwf ?? null, cloud_gfs: r.cloud_gfs ?? null }));
-        });
-      });
-      return out;
-    }
-  });
-  dash.calc('stargaze', {
-    title: '觀星燈號',
-    description: '每個時段兩個模式的平均雲量與燈號：都 ≤30% 有機會、都 ≥70% 不樂觀、一晴一陰模式分歧，其餘普通；前後半夜取較好的一段。',
-    inputs: ['sky', 'stargaze_hourly'],
-    fn: (sky, hourly) => {
-      const avg = (rs, k) => { const v = rs.map(r => r[k]).filter(x => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
-      const lv = (e, g) => e == null || g == null ? 'na' : (e <= 30 && g <= 30) ? 'good' : (e >= 70 && g >= 70) ? 'bad' : ((e <= 30 && g >= 70) || (g <= 30 && e >= 70)) ? 'split' : 'fair';
-      const rank = { good: 0, split: 1, fair: 2, bad: 3, na: 4 };
-      return sky.map(s => {
-        const f = hourly.filter(r => r.sky_id === s.id && r.half === 'front');
-        const b = hourly.filter(r => r.sky_id === s.id && r.half === 'back');
-        const fe = avg(f, 'cloud_ecmwf'), fg = avg(f, 'cloud_gfs'), be = avg(b, 'cloud_ecmwf'), bg = avg(b, 'cloud_gfs');
-        const lf = lv(fe, fg), lb = b.length ? lv(be, bg) : null;
-        const level = lb && rank[lb] < rank[lf] ? lb : lf;
-        return { id: s.id, front_ecmwf: fe, front_gfs: fg, back_ecmwf: be, back_gfs: bg, front_level: lf, back_level: lb, level,
-          best: lb && rank[lb] < rank[lf] ? 'back' : 'front' };
-      });
-    }
-  });
-  (() => {
-    const LBL = { good: '有機會', split: '模式分歧', fair: '普通', bad: '不樂觀', na: '模式還沒算到' };
-    const tag = (src, field, where, text) => { const e = document.createElement('span'); e.dataset.source = src; e.dataset.field = field; if (where) e.dataset.where = where; e.textContent = text; return e; };
-    function draw() {
-      const box = document.getElementById('star-cards');
-      box.textContent = '';
-      const S = dash.data('sky'), G = dash.data('stargaze'), H = dash.data('stargaze_hourly');
-      if (S.status !== 'ok' || G.status !== 'ok' || H.status !== 'ok') {
-        for (let i = 0; i < 3; i++) { const d = document.createElement('div'); d.className = 'jm-star dash-skeleton'; d.style.minHeight = '12rem'; box.append(d); }
-        return;
-      }
-      S.data.slice().sort((a, b) => Number(a.order) - Number(b.order)).forEach(s => {
-        const g = G.data.find(r => r.id === s.id) || {};
-        const w = 'id=' + encodeURIComponent(s.id);
-        const card = document.createElement('div'); card.className = 'jm-star s-' + (g.level || 'na');
-        const hd = document.createElement('div'); hd.className = 'hd';
-        const t = document.createElement('div');
-        const sg = document.createElement('div'); sg.className = 'sg'; sg.append(tag('sky', 'segment', w, s.segment));
-        const pl = document.createElement('div'); pl.className = 'pl'; pl.append(tag('sky', 'place', w, s.place));
-        t.append(sg, pl);
-        const lv = document.createElement('span'); lv.className = 'lv'; lv.append(tag('stargaze', 'level', w, LBL[g.level] || LBL.na));
-        hd.append(t, lv);
-        // 平均雲量說明
-        const why = document.createElement('div'); why.className = 'why';
-        const pct = v => v == null ? '—' : v + '%';
-        const line = (half, lab) => {
-          const d = document.createElement('div');
-          d.append(document.createTextNode(lab + '平均雲量 ECMWF '), tag('stargaze', half + '_ecmwf', w, pct(g[half + '_ecmwf'])),
-            document.createTextNode('｜GFS '), tag('stargaze', half + '_gfs', w, pct(g[half + '_gfs'])),
-            document.createTextNode('・' + (LBL[g[half + '_level']] || LBL.na)));
-          return d;
-        };
-        why.append(line('front', (s.front_label || '') + ' '));
-        if (s.back_from) why.append(line('back', (s.back_label || '') + ' '));
-        // 逐時雲量格
-        const rows = H.data.filter(r => r.sky_id === s.id);
-        const strip = document.createElement('div'); strip.className = 'jm-strip'; strip.dataset.source = 'stargaze_hourly';
-        strip.style.setProperty('--n', Math.max(1, rows.length));
-        const mkRow = (lab, k) => {
-          const r = document.createElement('div'); r.className = 'r';
-          const l = document.createElement('span'); l.className = 'lb'; l.textContent = lab; r.append(l);
-          rows.forEach(x => { const c = document.createElement('span'); c.className = 'c';
-            if (x[k] == null) { c.classList.add('na'); c.textContent = '·'; } else { c.style.setProperty('--p', Math.round(x[k]) + '%'); c.textContent = Math.round(x[k]); }
-            c.title = x.time.slice(11, 16) + '・' + (k === 'cloud_ecmwf' ? 'ECMWF' : 'GFS') + ' 雲量 ' + (x[k] == null ? '無資料' : Math.round(x[k]) + '%');
-            r.append(c); });
-          return r;
-        };
-        const hr = document.createElement('div'); hr.className = 'r';
-        hr.append(document.createElement('span'));
-        rows.forEach((x, i) => { const h = document.createElement('span'); h.className = 'h' + (i > 0 && x.half !== rows[i - 1].half ? ' cut' : ''); h.textContent = x.time.slice(11, 13); hr.append(h); });
-        strip.append(mkRow('EC', 'cloud_ecmwf'), mkRow('GFS', 'cloud_gfs'), hr);
-        // 天空
-        const sky = document.createElement('div'); sky.className = 'sky';
-        const a = document.createElement('span'); a.append(tag('sky', 'moon', w, s.moon));
-        const b = document.createElement('span'); b.append(tag('sky', 'highlight', w, s.highlight));
-        const c = document.createElement('span'); c.className = 'mut'; c.append(tag('sky', 'dark', w, s.dark));
-        sky.append(a, b, c);
-        card.append(hd, why, strip, sky);
-        box.append(card);
-      });
-    }
-    dash.onData(draw);
-  })();
-  </script>
 
   <section class="jm-card" id="route-chart">
     <h2>整趟路的氣溫，疊在山形上看</h2>
@@ -432,6 +319,13 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
       </table>
     </div>
     <div class="jm-warn">戒茂斯路線沿途要過溪兩次，大雨後溪水可能暴漲無法通過，妹池一帶營地也曾淹水。出發前幾天的累積雨量要特別留意。（嘉明湖山屋管理員提醒）</div>
+  </section>
+
+  <section class="jm-card" id="stargaze">
+    <h2>觀星參考</h2>
+    <p class="jm-note">輔助資訊。天黑時刻、月亮與行星是天文計算（固定不變），雲量是每天更新的格點預報。雲量是總雲量、包含低雲，營地海拔高時低雲可能在腳下，實際常比數字好。「適合觀星」是全暗、月亮不干擾，而且該模式雲量 30% 以下的連續時段。流星雨資料參考 <a href="https://starwalk.space/zh-Hant/news/november-meteor-showers" target="_blank" rel="noopener">Star Walk 2026 年 11 月流星雨整理</a>。</p>
+    <div class="jm-stars" id="star-nights" data-source="stargaze stargaze_nights sky_nights"></div>
+    <div class="jm-key" id="star-key"></div>
   </section>
 
   <section class="jm-card" id="links">
@@ -563,6 +457,45 @@ dash.calc('summary' + SFX, {
 }
 jmCalcs('', 'route', 0);
 jmCalcs('_m2', 'route_m2', -2);
+dash.calc('stargaze', {
+  title: '營地夜間觀星條件',
+  description: '兩晚營地每小時的天色、月亮高度（天文計算）對上同一小時兩個模式的雲量。',
+  inputs: ['sky_hourly', 'route'],
+  fn: (sky_hourly, route) => sky_hourly.map(s => {
+    const r = route.find(x => x.time === s.time) || {};
+    const sky = s.sun_alt > 0 ? '白天' : s.sun_alt > -18 ? '曙暮光' : '全暗';
+    const moon_ok = s.moon_alt < 0 || s.moon_illum < 15;
+    return { key: s.key, night: s.night, camp: s.camp, time: s.time, sky, sun_alt: s.sun_alt,
+      moon_alt: s.moon_alt, moon_illum: s.moon_illum, moon_ok,
+      cloud_ecmwf: r.cloud_ecmwf ?? null, cloud_gfs: r.cloud_gfs ?? null };
+  })
+});
+
+dash.calc('stargaze_nights', {
+  title: '每晚適合觀星的時段',
+  description: '全暗、月亮不干擾，而且雲量 30% 以下的最長連續時段，兩個模式分開算。',
+  inputs: ['stargaze'],
+  fn: (stargaze) => {
+    const nights = [...new Set(stargaze.map(r => r.night))];
+    return nights.map(night => {
+      const rs = stargaze.filter(r => r.night === night);
+      const best = k => {
+        let run = [], top = [];
+        rs.forEach(r => {
+          const ok = r.sky === '全暗' && r.moon_ok && r[k] != null && r[k] <= 30;
+          if (ok) { run.push(r); if (run.length > top.length) top = run.slice(); } else run = [];
+        });
+        return top.length ? top[0].time.slice(11, 13) + '–' + String((+top[top.length - 1].time.slice(11, 13) + 1) % 24).padStart(2, '0') + ' 時' : null;
+      };
+      const hrs = k => rs.filter(r => r.sky === '全暗' && r.moon_ok && r[k] != null && r[k] <= 30).length;
+      const cov = k => rs.some(r => r[k] != null);
+      return { night, best_ecmwf: best('cloud_ecmwf'), best_gfs: best('cloud_gfs'),
+        clear_hours_ecmwf: hrs('cloud_ecmwf'), clear_hours_gfs: hrs('cloud_gfs'),
+        covered_ecmwf: cov('cloud_ecmwf'), covered_gfs: cov('cloud_gfs') };
+    });
+  }
+});
+
 
 window.jmWx = (() => {
   const NS = 'http://www.w3.org/2000/svg';
@@ -1118,7 +1051,87 @@ function drawCamps() {
   });
 }
 
-const drawAll = () => { drawAssessment(); drawSummary(); drawTiles(); drawCamps(); drawChart(); drawDays(); drawCwa(); drawRain(); drawSources(); };
+function drawStars() {
+  const box = document.getElementById('star-nights');
+  box.textContent = '';
+  const key = document.getElementById('star-key');
+  key.textContent = '';
+  const toneDark = cssv('--jm-c0'), toneTw = cssv('--jm-ridge'), toneDay = cssv('--jm-c15'), fg = cssv('--color-fg'), bg = cssv('--color-bg'), muted = cssv('--color-fg-muted');
+  [[toneDark, 1, '全暗'], [toneTw, .55, '曙暮光'], [toneDay, .6, '月亮在天上'], [muted, .85, '雲量（越深越多雲）']].forEach(([c, op, t]) => {
+    const s = document.createElement('span'); const i = document.createElement('i'); i.className = 'jm-cell2'; i.style.background = c; i.style.opacity = op;
+    s.append(i, document.createTextNode(t)); key.append(s);
+  });
+  const S = dash.data('stargaze'), N = dash.data('stargaze_nights'), K = dash.data('sky_nights');
+  if (S.status !== 'ok' || N.status !== 'ok' || K.status !== 'ok') { for (let i = 0; i < 2; i++) { const d = document.createElement('div'); d.className = 'jm-star dash-skeleton'; box.append(d); } return; }
+  const hm = s => s ? s.slice(11, 16) : '—';
+  const span = (src, field, w, text) => mk(src, field, w, text);
+  K.data.forEach(k => {
+    const w = 'night=' + encodeURIComponent(k.night);
+    const n = N.data.find(x => x.night === k.night) || {};
+    const rows = S.data.filter(r => r.night === k.night);
+    const card = document.createElement('div'); card.className = 'jm-star';
+    const h = document.createElement('h3'); h.append(document.createTextNode(k.night + '・'), span('sky_nights', 'camp', w, k.camp));
+    const f1 = document.createElement('p'); f1.className = 'fact';
+    f1.append('全暗 ', span('sky_nights', 'astro_dusk', w, hm(k.astro_dusk)), '–', span('sky_nights', 'astro_dawn', w, hm(k.astro_dawn)),
+      '（日落 ', span('sky_nights', 'sunset', w, hm(k.sunset)), '、日出 ', span('sky_nights', 'sunrise', w, hm(k.sunrise)), '）');
+    const f2 = document.createElement('p'); f2.className = 'fact';
+    f2.append('月亮 ', span('sky_nights', 'moonrise', w, hm(k.moonrise)), ' 才升起，亮度 ', span('sky_nights', 'moon_illum', w, k.moon_illum == null ? '—' : String(k.moon_illum)), '%（新月 ',
+      span('sky_nights', 'new_moon', w, k.new_moon ? J.md(k.new_moon) : '—'), '），整晚幾乎沒有月光干擾');
+    const best = document.createElement('p'); best.className = 'best';
+    const bw = 'night=' + encodeURIComponent(k.night);
+    const one = (label, field, cov) => {
+      const sp = document.createElement('span');
+      sp.append(label + ' ');
+      const b = document.createElement('b');
+      b.append(span('stargaze_nights', field, bw, n[cov] === false ? '模式還沒算到' : (n[field] || '雲量都偏多')));
+      sp.append(b); return sp;
+    };
+    best.append('適合觀星：', one('ECMWF', 'best_ecmwf', 'covered_ecmwf'), '｜', one('GFS', 'best_gfs', 'covered_gfs'));
+    const grid = document.createElement('div'); grid.className = 'jm-star-grid';
+    card.append(h, f1, f2, best, grid); box.append(card);
+    card._rows = rows; card._grid = grid; card._k = k;
+    const dl = document.createElement('dl');
+    [['銀河', 'milky_way', k.milky_way], ['流星雨', 'meteors', k.meteors], ['清晨', 'dawn', k.dawn]].forEach(([t, fld, v]) => {
+      const dt = document.createElement('dt'); dt.textContent = t;
+      const dd = document.createElement('dd'); dd.append(span('sky_nights', fld, w, v || '—'));
+      dl.append(dt, dd);
+    });
+    const dt = document.createElement('dt'); dt.textContent = '行星';
+    const dd = document.createElement('dd');
+    dd.append('土星 ', span('sky_nights', 'saturn_set', w, hm(k.saturn_set)), ' 落下；火星 ', span('sky_nights', 'mars_rise', w, hm(k.mars_rise)), '、木星 ',
+      span('sky_nights', 'jupiter_rise', w, hm(k.jupiter_rise)), ' 從東方升起；金星 ', span('sky_nights', 'venus_rise', w, hm(k.venus_rise)), ' 升起');
+    dl.append(dt, dd);
+    card.append(dl);
+  });
+  box.querySelectorAll('.jm-star').forEach(card => {
+    const rows = card._rows, el = card._grid; if (!rows || !rows.length) return;
+    const W = Math.max(260, el.clientWidth || 320), L = 52, rh = 18, gap = 3;
+    const labels = ['天色', '月亮', '雲 ECMWF', '雲 GFS'];
+    const H = 14 + labels.length * (rh + gap) + 4;
+    const cw = (W - L) / rows.length;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', card._k.night + ' 每小時觀星條件');
+    rows.forEach((r, i) => { const hr = +r.time.slice(11, 13); if (hr % 2) return;
+      svg.append('text').attr('x', L + i * cw + cw / 2).attr('y', 10).attr('text-anchor', 'middle').text(String(hr).padStart(2, '0')); });
+    labels.forEach((t, j) => svg.append('text').attr('x', 0).attr('y', 14 + j * (rh + gap) + rh / 2 + 3).text(t));
+    rows.forEach((r, i) => {
+      const x = L + i * cw + 1, w = Math.max(1, cw - 2);
+      const y0 = 14;
+      const sky = r.sky === '全暗' ? [toneDark, 1] : r.sky === '曙暮光' ? [toneTw, .55] : [toneDay, .35];
+      svg.append('rect').attr('x', x).attr('y', y0).attr('width', w).attr('height', rh).attr('rx', 2).attr('fill', sky[0]).attr('fill-opacity', sky[1]);
+      const y1 = y0 + rh + gap;
+      svg.append('rect').attr('x', x).attr('y', y1).attr('width', w).attr('height', rh).attr('rx', 2).attr('fill', r.moon_alt > 0 ? toneDay : 'transparent').attr('fill-opacity', .6).attr('stroke', cssv('--color-border-line'));
+      [['cloud_ecmwf', 2], ['cloud_gfs', 3]].forEach(([k, j]) => {
+        const y = y0 + j * (rh + gap), v = r[k];
+        svg.append('rect').attr('x', x).attr('y', y).attr('width', w).attr('height', rh).attr('rx', 2)
+          .attr('fill', v == null ? 'transparent' : muted).attr('fill-opacity', v == null ? 0 : .08 + .77 * v / 100).attr('stroke', cssv('--color-border-line'));
+        if (cw >= 16) svg.append('text').attr('class', 'in').attr('x', x + w / 2).attr('y', y + rh / 2 + 3).attr('text-anchor', 'middle')
+          .style('fill', v != null && v > 55 ? bg : fg).text(v == null ? '' : Math.round(v));
+      });
+    });
+  });
+}
+
+const drawAll = () => { drawAssessment(); drawSummary(); drawTiles(); drawCamps(); drawChart(); drawDays(); drawCwa(); drawRain(); drawStars(); drawSources(); };
 const setView = v => {
   window.jmView = v;
   document.getElementById('v-real').setAttribute('aria-pressed', String(v === 'real'));
