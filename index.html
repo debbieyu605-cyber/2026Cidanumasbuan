@@ -191,6 +191,17 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
   .jm-line { animation: jm-draw 1.2s var(--cds-ease-out) both; }
   @keyframes jm-draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
 }
+.jm-camps { display: grid; gap: var(--cds-gap-lg); grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+.jm-camp { min-width: 0; }
+.jm-camp h3 { font-size: var(--cds-font-size-body); font-weight: 600; margin: 0; }
+.jm-camp-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: 2px 0 var(--cds-gap-xs); font-variant-numeric: tabular-nums; }
+.jm-camp-chart { position: relative; min-height: 260px; }
+.jm-camp-chart svg text { fill: var(--color-fg-muted); font-size: 10px; font-family: var(--font-anthropic-sans); font-variant-numeric: tabular-nums; }
+.jm-camp-chart svg text.mn { fill: var(--color-fg); font-weight: 600; font-size: 11px; }
+.jm-camp.dash-skeleton { min-height: 260px; border-radius: var(--cds-radius); }
+.jm-sw2 { width: 20px; height: 0; border-top: 2px solid; display: inline-block; }
+.jm-sw2.d { border-top-style: dashed; }
+.jm-bar { width: 10px; height: 10px; display: inline-block; border-radius: 2px; opacity: .55; }
 .jm-assess { display: grid; gap: var(--cds-gap-md); }
 .jm-assess .ov { border-left: 4px solid var(--jm-lv, var(--color-border-line)); padding: var(--cds-pad-xs) 0 var(--cds-pad-xs) var(--cds-pad-md); }
 .jm-assess .ov .hl { font-family: var(--font-anthropic-serif); font-size: calc(var(--cds-font-size-heading) * 1.15); line-height: 1.4; margin: 0; text-wrap: pretty; }
@@ -225,6 +236,13 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
   </section>
 
   <section class="jm-tiles" id="night-tiles" data-source="nights"></section>
+
+  <section class="jm-card" id="camp-hourly">
+    <h2>營地駐紮時段，逐時怎麼變</h2>
+    <p class="jm-note">照行程表從抵達營地到拔營出發，每小時在營地的格點預報。實線是氣溫、虛線是體感，下方長條是降雨機率，最上面兩排小圖示是兩個模式的天氣型態（上 ECMWF、下 GFS）。灰底是 18:00–06:00 夜間。點圖可看該小時數值。</p>
+    <div class="jm-camps" id="camp-charts" data-source="camp_hourly"></div>
+    <div class="jm-key" id="camp-key"></div>
+  </section>
 
   <section class="jm-card" id="route-chart">
     <h2>整趟路的氣溫，疊在山形上看</h2>
@@ -372,6 +390,32 @@ dash.calc('nights' + SFX, {
         rainprob_max_gfs: max(rs, 'rainprob_gfs'), wind_max_gfs: max(rs, 'wind_gfs'),
         wcode_max_ecmwf: max(rs, 'wcode_ecmwf'), wcode_max_gfs: max(rs, 'wcode_gfs') };
     });
+  }
+});
+
+dash.calc('camp_hourly' + SFX, {
+  title: SHIFT ? '營地逐時（提前兩天試算）' : '營地駐紮時段逐時預報',
+  description: '照行程表從抵達營地到拔營出發，每小時在該營地的格點預報（ECMWF、GFS 兩個模式）。',
+  inputs: ['itinerary', ROUTE],
+  fn: (itinerary, route) => {
+    const sh = s => { const d = new Date(s + ':00Z'); d.setUTCDate(d.getUTCDate() + SHIFT); return d.toISOString().slice(0, 16); };
+    const out = [];
+    itinerary.forEach((it, i) => {
+      if (it.event !== '抵達營地') return;
+      const nx = itinerary.slice(i + 1).find(e => e.event === '拔營出發' && e.place === it.place);
+      if (!nx) return;
+      const a = sh(it.forecast_hour), b = sh(nx.forecast_hour);
+      route.filter(r => r.time >= a && r.time <= b).forEach(r => out.push({
+        key: it.place + ' ' + r.time, camp: it.place, elev_m: it.elev_m, time: r.time,
+        temp_ecmwf: r.temp_ecmwf ?? null, temp_gfs: r.temp_gfs ?? null,
+        feels_ecmwf: r.feels_ecmwf ?? null, feels_gfs: r.feels_gfs ?? null,
+        rainprob_ecmwf: r.rainprob_ecmwf ?? null, rainprob_gfs: r.rainprob_gfs ?? null,
+        rain_mm_ecmwf: r.rain_mm_ecmwf ?? null, rain_mm_gfs: r.rain_mm_gfs ?? null,
+        rh_ecmwf: r.rh_ecmwf ?? null, rh_gfs: r.rh_gfs ?? null,
+        wind_ecmwf: r.wind_ecmwf ?? null, wind_gfs: r.wind_gfs ?? null,
+        wcode_ecmwf: r.wcode_ecmwf ?? null, wcode_gfs: r.wcode_gfs ?? null }));
+    });
+    return out;
   }
 });
 
@@ -834,7 +878,120 @@ function drawAssessment() {
   box.append(ul);
 }
 
-const drawAll = () => { drawAssessment(); drawSummary(); drawTiles(); drawChart(); drawDays(); drawCwa(); drawRain(); drawSources(); };
+function drawCamps() {
+  const box = document.getElementById('camp-charts');
+  const id = V('camp_hourly');
+  box.dataset.source = id;
+  box.textContent = '';
+  const CE = dash.colors[0], CG = dash.colors[1];
+  const key = document.getElementById('camp-key');
+  key.textContent = '';
+  [['jm-sw2', CE, '氣溫 ECMWF'], ['jm-sw2 d', CE, '體感 ECMWF'], ['jm-sw2', CG, '氣溫 GFS'], ['jm-sw2 d', CG, '體感 GFS'], ['jm-bar', CE, '降雨機率 ECMWF'], ['jm-bar', CG, '降雨機率 GFS']].forEach(([c, col, t]) => {
+    const s = document.createElement('span'); const i = document.createElement('i'); i.className = c;
+    if (c === 'jm-bar') i.style.background = col; else i.style.borderTopColor = col;
+    s.append(i, document.createTextNode(t)); key.append(s);
+  });
+  const s = dash.data(id);
+  if (s.status !== 'ok') { for (let i = 0; i < 2; i++) { const d = document.createElement('div'); d.className = 'jm-camp dash-skeleton'; box.append(d); } return; }
+  const camps = [...new Set(s.data.map(r => r.camp))];
+  const jobs = [];
+  camps.forEach(camp => {
+    const rows = s.data.filter(r => r.camp === camp).map(r => Object.assign({}, r, { t: J.date(r.time) }));
+    if (!rows.length) return;
+    const card = document.createElement('div'); card.className = 'jm-camp';
+    const h = document.createElement('h3'); h.textContent = camp + '・' + rows[0].elev_m + ' m';
+    const first = rows[0].time, last = rows[rows.length - 1].time;
+    const sub = document.createElement('p'); sub.className = 'jm-camp-sub';
+    sub.textContent = J.md(first) + ' ' + J.hm(first) + ' 抵達 → ' + J.md(last) + ' ' + J.hm(last) + ' 拔營';
+    const el = document.createElement('div'); el.className = 'jm-camp-chart';
+    card.append(h, sub, el); box.append(card);
+    jobs.push([camp, rows, el]);
+  });
+  jobs.forEach(([camp, rows, el]) => {
+    const W = Math.max(280, el.clientWidth || 340), H = 252;
+    const m = { l: 38, r: 12 };
+    const x = d3.scaleTime([rows[0].t, rows[rows.length - 1].t], [m.l, W - m.r]);
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', camp + ' 駐紮時段逐時預報');
+    const vals = rows.flatMap(r => [r.temp_ecmwf, r.temp_gfs, r.feels_ecmwf, r.feels_gfs]).filter(v => v != null);
+    if (!vals.length) { svg.append('text').attr('x', W / 2).attr('y', H / 2).attr('text-anchor', 'middle').text('模式還沒算到'); return; }
+    const step = rows.length > 1 ? x(rows[1].t) - x(rows[0].t) : 20;
+    const y = d3.scaleLinear([Math.min(0, d3.min(vals)) - 1, d3.max(vals) + 1], [172, 48]).nice();
+    const yr = d3.scaleLinear([0, 100], [226, 186]);
+    const muted = cssv('--color-fg-muted'), line = cssv('--color-border-line');
+    // 夜間灰底
+    rows.forEach(r => { const hr = r.t.getUTCHours(); if (hr >= 18 || hr < 6) {
+      const x0 = Math.max(m.l, x(r.t) - step / 2), x1 = Math.min(W - m.r, x(r.t) + step / 2);
+      svg.append('rect').attr('x', x0).attr('width', Math.max(0, x1 - x0)).attr('y', 44).attr('height', 226 - 44).attr('fill', cssv('--jm-ridge')).attr('fill-opacity', .1); } });
+    // 溫度格線
+    y.ticks(4).forEach(v => {
+      svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y(v)).attr('y2', y(v)).attr('stroke', v === 0 ? muted : line).attr('stroke-opacity', v === 0 ? .7 : 1).attr('stroke-dasharray', v === 0 ? '3 3' : null);
+      svg.append('text').attr('x', m.l - 4).attr('y', y(v) + 3).attr('text-anchor', 'end').text(v + '°');
+    });
+    // 降雨機率長條
+    svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', yr(0)).attr('y2', yr(0)).attr('stroke', line);
+    svg.append('text').attr('x', m.l - 4).attr('y', yr(100) + 3).attr('text-anchor', 'end').text('100%');
+    svg.append('text').attr('x', m.l - 4).attr('y', yr(0)).attr('text-anchor', 'end').text('0');
+    const bw = Math.max(1.5, step * .36);
+    rows.forEach(r => {
+      [['rainprob_ecmwf', CE, -bw], ['rainprob_gfs', CG, 0]].forEach(([k, col, dx]) => {
+        if (r[k] == null) return;
+        svg.append('rect').attr('x', x(r.t) + dx).attr('width', bw).attr('y', yr(r[k])).attr('height', yr(0) - yr(r[k])).style('fill', col).attr('fill-opacity', .55);
+      });
+    });
+    // 氣溫、體感線
+    [['temp_ecmwf', CE, null, 2], ['feels_ecmwf', CE, '4 3', 1.6], ['temp_gfs', CG, null, 2], ['feels_gfs', CG, '4 3', 1.6]].forEach(([k, col, dash_, w]) => {
+      const ln = d3.line().defined(d => d[k] != null).x(d => x(d.t)).y(d => y(d[k]));
+      svg.append('path').datum(rows).attr('d', ln).attr('fill', 'none').style('stroke', col).attr('stroke-width', w).attr('stroke-dasharray', dash_).attr('stroke-linejoin', 'round');
+    });
+    // 兩個模式的最低體感
+    [['feels_ecmwf', CE, 'ECMWF'], ['feels_gfs', CG, 'GFS']].forEach(([k, col, tag], j) => {
+      const rr = rows.filter(r => r[k] != null); if (!rr.length) return;
+      const lo = rr.reduce((a, b) => b[k] < a[k] ? b : a);
+      svg.append('circle').attr('cx', x(lo.t)).attr('cy', y(lo[k])).attr('r', 3.5).style('fill', col);
+      const px = x(lo.t), fr = (px - m.l) / (W - m.l - m.r);
+      const anc = fr > .7 ? 'end' : fr < .3 ? 'start' : 'middle';
+      svg.append('text').attr('class', 'mn').attr('x', px + (anc === 'end' ? 4 : anc === 'start' ? -4 : 0)).attr('y', y(lo[k]) + 15 + j * 12).attr('text-anchor', anc).text(`${tag} 體感最低 ${J.t(lo[k])}°（${J.hm(lo.time)}）`);
+    });
+    // 天氣圖示（每 2 小時）
+    svg.append('text').attr('x', m.l - 12).attr('y', 14).attr('text-anchor', 'end').text('E');
+    svg.append('text').attr('x', m.l - 12).attr('y', 34).attr('text-anchor', 'end').text('G');
+    rows.forEach((r, i) => {
+      if (i % 2) return;
+      [['wcode_ecmwf', 2], ['wcode_gfs', 22]].forEach(([k, yy]) => {
+        if (r[k] == null) return;
+        const ic = window.jmWx.icon(r[k], r.t.getUTCHours());
+        ic.setAttribute('x', x(r.t) - 8); ic.setAttribute('y', yy); ic.setAttribute('width', 16); ic.setAttribute('height', 16);
+        svg.node().append(ic);
+      });
+    });
+    // 時間軸
+    rows.forEach(r => { const hr = r.t.getUTCHours(); if (hr % 3) return;
+      svg.append('text').attr('x', x(r.t)).attr('y', 244).attr('text-anchor', 'middle').text(hr === 0 ? J.md(r.time) : String(hr).padStart(2, '0') + '時'); });
+    // 提示
+    const tip = d3.select(el).append('div').attr('class', 'jm-tip').attr('hidden', true);
+    const rule = svg.append('line').attr('y1', 44).attr('y2', 226).attr('stroke', muted).attr('stroke-opacity', 0);
+    const bis = d3.bisector(d => d.t).center;
+    svg.append('rect').attr('x', m.l).attr('width', W - m.l - m.r).attr('y', 0).attr('height', H).attr('fill', 'transparent')
+      .on('pointermove', ev => {
+        const [px] = d3.pointer(ev); const d = rows[bis(rows, x.invert(px))]; if (!d) return;
+        rule.attr('x1', x(d.t)).attr('x2', x(d.t)).attr('stroke-opacity', .5);
+        tip.attr('hidden', null).text('');
+        tip.append('div').attr('class', 't').text(`${J.md(d.time)} ${J.hm(d.time)}・${camp}`);
+        const hr = d.t.getUTCHours();
+        tip.append('div').text(`天氣 ECMWF ${window.jmWx.label(d.wcode_ecmwf, hr)}｜GFS ${window.jmWx.label(d.wcode_gfs, hr)}`);
+        tip.append('div').text(`氣溫 ECMWF ${J.t(d.temp_ecmwf)}｜GFS ${J.t(d.temp_gfs)} °C`);
+        tip.append('div').text(`體感 ECMWF ${J.t(d.feels_ecmwf)}｜GFS ${J.t(d.feels_gfs)} °C`);
+        tip.append('div').text(`降雨機率 ECMWF ${d.rainprob_ecmwf ?? '—'}｜GFS ${d.rainprob_gfs ?? '—'} %`);
+        tip.append('div').text(`雨量 ECMWF ${d.rain_mm_ecmwf ?? '—'}｜GFS ${d.rain_mm_gfs ?? '—'} mm`);
+        tip.append('div').text(`風 ECMWF ${J.t(d.wind_ecmwf)}｜GFS ${J.t(d.wind_gfs)} m/s・濕度 ${d.rh_gfs ?? d.rh_ecmwf ?? '—'}%`);
+        const cw = el.clientWidth, tw = tip.node().offsetWidth, p = x(d.t) * (cw / W);
+        tip.style('left', Math.max(0, Math.min(cw - tw, p + 12)) + 'px').style('top', '40px');
+      })
+      .on('pointerleave', () => { tip.attr('hidden', true); rule.attr('stroke-opacity', 0); });
+  });
+}
+
+const drawAll = () => { drawAssessment(); drawSummary(); drawTiles(); drawCamps(); drawChart(); drawDays(); drawCwa(); drawRain(); drawSources(); };
 const setView = v => {
   window.jmView = v;
   document.getElementById('v-real').setAttribute('aria-pressed', String(v === 'real'));
