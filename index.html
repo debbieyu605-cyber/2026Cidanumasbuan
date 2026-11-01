@@ -84,6 +84,8 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
 .jm-take { color: var(--color-fg-muted); margin: var(--cds-gap-sm) 0 0; font-size: var(--cds-font-size-body); max-width: 62ch; line-height: 1.6; }
 .jm-take b { color: var(--color-fg); font-weight: 600; }
 .jm-low { display: inline-block; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); border-radius: 999px; padding: 0 8px; margin-left: 4px; white-space: nowrap; }
+.jm-low.lv-good { border-color: transparent; background: color-mix(in srgb, var(--color-ok) 16%, transparent); color: var(--color-fg); }
+.jm-low.lv-caution { border-color: transparent; background: color-mix(in srgb, var(--color-warn) 18%, transparent); color: var(--color-fg); }
 
 .jm-tiles { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
 .jm-tile { position: relative; overflow: hidden; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-xs); min-height: 9.5rem; }
@@ -235,7 +237,7 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
   <header class="jm-head">
     <p class="jm-eyebrow">11/6–11/8｜戒茂斯上嘉明湖・向陽出｜三天兩夜</p>
     <h1 id="title">嘉明湖沿線氣溫</h1>
-    <p class="jm-take"><span id="take-real">預報目前涵蓋到 <b data-source="summary" data-field="covered_until" data-row="0" class="dash-skeleton">—</b>。已涵蓋的時段裡，體感最低 <b data-source="summary" data-field="coldest_feels" data-row="0" class="dash-skeleton">—</b> °C，在 <b data-source="summary" data-field="coldest_place" data-row="0" class="dash-skeleton">—</b>（<span data-source="summary" data-field="coldest_time" data-row="0" class="dash-skeleton">—</span>）。</span><span class="jm-low">遠期預報・低可信度</span></p>
+    <p class="jm-take"><span id="take-real">預報目前涵蓋到 <b data-source="summary" data-field="covered_until" data-row="0" class="dash-skeleton">—</b>。已涵蓋的時段裡，體感最低 <b data-source="summary" data-field="coldest_feels" data-row="0" class="dash-skeleton">—</b> °C，在 <b data-source="summary" data-field="coldest_place" data-row="0" class="dash-skeleton">—</b>（<span data-source="summary" data-field="coldest_time" data-row="0" class="dash-skeleton">—</span>）。</span><span class="jm-low" id="conf-pill">遠期預報・低可信度</span></p>
     <div class="jm-view" role="group" aria-label="切換日期">
       <button type="button" id="v-real" aria-pressed="true">實際行程 11/6–11/8</button>
       <button type="button" id="v-m2" aria-pressed="false">提前兩天試算 11/4–11/6</button>
@@ -543,6 +545,8 @@ window.jm = {
   t: v => v == null ? '—' : (Math.round(v * 10) / 10).toFixed(1),
   hm: s => s.slice(11, 16),
   md: s => s.slice(5, 10).replace('-', '/'),
+  // ISO 時間字串轉成「11/15 22:00」；只有日期就「11/07」；其他字串原樣回傳
+  ts: v => { if (v == null) return ''; const s = String(v); const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/); if (!m) return s; return m[2] + '/' + m[3] + (m[4] ? ' ' + m[4] + ':' + m[5] : ''); },
   date: s => new Date(s + ':00Z'),
   // 溫度色：0、5、10、15、20 °C 五個色階
   color: (v) => {
@@ -622,7 +626,7 @@ function drawSources() {
   if (s.status !== 'ok') return;
   s.data.forEach(r => {
     const tr = document.createElement('tr');
-    ['source', 'last_forecast', 'queried_at', 'note'].forEach(k => { const td = document.createElement('td'); td.textContent = r[k] ?? ''; tr.appendChild(td); });
+    ['source', 'last_forecast', 'queried_at', 'note'].forEach(k => { const td = document.createElement('td'); td.textContent = J.ts(r[k]); if (r[k] != null && String(r[k]) !== td.textContent) td.title = String(r[k]); tr.appendChild(td); });
     tb.appendChild(tr);
   });
 }
@@ -659,7 +663,7 @@ function drawDays() {
       meta.append(mk(V('checkpoints'), 'elev_m', w, r.elev_m), document.createTextNode(' m'));
       const rp = r.rainprob_gfs ?? r.rainprob_ecmwf, rf = r.rainprob_gfs != null ? 'rainprob_gfs' : 'rainprob_ecmwf';
       const wd = r.wind_gfs ?? r.wind_ecmwf, wf = r.wind_gfs != null ? 'wind_gfs' : 'wind_ecmwf';
-      if (rp != null) meta.append(document.createTextNode('・雨 '), mk(V('checkpoints'), rf, w, rp), document.createTextNode('%・風 '), mk(V('checkpoints'), wf, w, J.t(wd)), document.createTextNode(' m/s'));
+      if (rp != null) meta.append(document.createTextNode('・雨 '), mk(V('checkpoints'), rf, w, rp), document.createTextNode('%・風 '), mk(V('checkpoints'), wf, w, J.t(wd)), document.createTextNode('\u00a0m/s'));
       pl.append(nm, meta);
       const th = document.createElement('div'); th.className = 'jm-thermo';
       const rail = document.createElement('div'); rail.className = 'rail'; th.append(rail);
@@ -705,7 +709,8 @@ function drawChart() {
   const route = R.data.map(d => ({ ...d, t: J.date(d.time) }));
   const itin = I.data.map(d => { const t = J.date(d.time); t.setUTCDate(t.getUTCDate() + SH); return { ...d, t, time: t.toISOString().slice(0, 16) }; });
   const W = Math.max(300, el.clientWidth), H = 430;
-  const m = { t: 58, r: 44, b: 90, l: 40 };
+  const narrow = W < 600;
+  const m = { t: narrow ? 74 : 58, r: 44, b: 90, l: 40 };
   const t0 = route[0].t, t1 = route[route.length - 1].t;
   const x = d3.scaleUtc([t0, t1], [m.l, W - m.r]);
   const vals = route.flatMap(d => [d.temp_ecmwf, d.temp_gfs, d.feels_ecmwf, d.feels_gfs]).filter(v => v != null);
@@ -757,7 +762,7 @@ function drawChart() {
   svg.append('g').selectAll('text').data(hrs).join('text').attr('x', d => x(d)).attr('y', H - m.b + 14).attr('text-anchor', 'middle').text(d => String(d.getUTCHours()).padStart(2, '0'));
   const dstarts = [t0, ...days];
   svg.append('g').selectAll('text').data(dstarts).join('text').attr('class', 'strong').attr('x', (d, i) => i === 0 ? m.l : x(d) + 4).attr('y', H - m.b + 30)
-    .text((d, i) => `DAY ${i + 1}・${d.getUTCMonth() + 1}/${d.getUTCDate()}`);
+    .text((d, i) => narrow ? `D${i + 1} ${d.getUTCMonth() + 1}/${d.getUTCDate()}` : `DAY ${i + 1}・${d.getUTCMonth() + 1}/${d.getUTCDate()}`);
 
   // 線
   const line = k => d3.line().defined(d => d[k] != null).x(d => x(d.t)).y(d => y(d[k]));
@@ -775,16 +780,21 @@ function drawChart() {
     g.append('circle').attr('cx', x(d.t)).attr('cy', ye(d.elev_m)).attr('r', key ? 3.5 : 2.5).attr('fill', cssv('--color-panel')).attr('stroke', ridge).attr('stroke-width', 1.5);
   });
   const key = itin.filter(d => /起登|抵達營地|拔營出發|下山|日出/.test(d.event));
-  const lastX = [-1e9, -1e9];
+  // 依文字實際寬度排到第一個放得下的那一排（窄螢幕最多三排），避免互相疊字
+  const rowsY = narrow ? [m.t - 50, m.t - 34, m.t - 18] : [m.t - 34, m.t - 18];
+  const lastEnd = rowsY.map(() => -1e9);
   key.forEach(d => {
     const px = x(d.t);
-    const row = px - lastX[0] > 76 ? 0 : 1;
     const lab = d.event.replace('抵達營地', '抵達').replace('拔營出發', '出發') + ' ' + J.hm(d.time);
-    const tx = g.append('text').attr('x', px).attr('y', row === 0 ? m.t - 34 : m.t - 18).attr('text-anchor', 'middle').attr('class', 'strong').text(lab);
-    const bb = tx.node().getBBox();
+    const tx = g.append('text').attr('x', px).attr('y', rowsY[0]).attr('text-anchor', 'middle').attr('class', 'strong').text(lab);
+    let bb = tx.node().getBBox();
     if (bb.x < 2) tx.attr('text-anchor', 'start').attr('x', 2);
     if (bb.x + bb.width > W - 2) tx.attr('text-anchor', 'end').attr('x', W - 2);
-    lastX[row] = px;
+    bb = tx.node().getBBox();
+    let row = lastEnd.findIndex(e => bb.x - e > 6);
+    if (row < 0) row = lastEnd.indexOf(Math.min(...lastEnd));
+    tx.attr('y', rowsY[row]);
+    lastEnd[row] = bb.x + bb.width;
   });
 
   // 天氣小圖示（兩列：ECMWF、GFS）
@@ -917,6 +927,15 @@ function drawAssessment() {
   const ov = rows.find(r => r.id === 'overall');
   const t0 = ov ? ov.assessed_at : rows[0].assessed_at;
   tm.textContent = t0 ? String(t0).slice(5, 10).replace('-', '/') + ' ' + String(t0).slice(11, 16) : '—';
+  // 頁首的可信度小標跟著「預報可信度」那一列走
+  const pill = document.getElementById('conf-pill');
+  const cf = rows.find(r => r.id === 'confidence');
+  if (pill && cf) {
+    const PT = { good: '三天內預報・可信度高', caution: '中期預報・中等可信度', bad: '中期預報・中等可信度', unknown: '遠期預報・低可信度' };
+    pill.textContent = PT[cf.level] || PT.unknown;
+    pill.className = 'jm-low ' + (cf.level === 'bad' ? 'lv-caution' : lvCls(cf));
+    pill.title = cf.headline || '';
+  }
   if (ov) {
     const d = document.createElement('div'); d.className = 'ov ' + lvCls(ov);
     const h = document.createElement('p'); h.className = 'hl'; h.append(mk('assessment', 'headline', W(ov), ov.headline || '—'));
