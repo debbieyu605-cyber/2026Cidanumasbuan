@@ -5,7 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>嘉明湖沿線氣溫</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#faf9f5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="嘉明湖">
+<link rel="apple-touch-icon" href="icon-180.png">
+<script src="d3.min.js"></script>
 <style>
 :root{
   --color-bg:#faf9f5;--color-panel:#ffffff;--color-fg:#141413;--color-fg-muted:#6b6a64;
@@ -31,6 +37,8 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
 .dash-skeleton{color:var(--color-fg-muted);}
 .site-foot{max-width:1100px;margin:28px auto 0;color:var(--color-fg-muted);font-size:var(--cds-font-size-caption);line-height:1.6;}
 .site-err{max-width:1100px;margin:0 auto 16px;padding:10px 12px;border:1px solid var(--color-border-line);border-radius:var(--cds-radius);color:var(--color-bad);display:none;}
+.site-off{max-width:1100px;margin:0 auto 16px;padding:10px 12px;border-radius:var(--cds-radius);background:color-mix(in srgb,var(--color-warn) 14%,transparent);color:var(--color-fg);font-size:var(--cds-font-size-caption);line-height:1.6;display:none;}
+.site-off b{font-weight:600;}
 </style>
 <script>
 /* 把原本儀表板用的 dash.data / dash.calc / dash.onData 換成讀 data.json 的版本 */
@@ -61,10 +69,26 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
     colors:['#2f5fb3','#d9733a','#3aa39a','#9a5fc0','#d9a23a','#c2477a','#5c8a3a','#7a8696'],
     refresh:function(){}, params:function(){return {};}, setParams:function(){}, resetParams:function(){}, setLink:function(){}
   };
-  fetch('data.json?v='+Date.now(),{cache:'no-store'}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
-    .then(function(j){ store=j.datasets||{}; loaded=true; cache={}; run();
-      var f=document.getElementById('site-updated'); if(f&&j.updated_at) f.textContent=j.updated_at; })
-    .catch(function(e){ failed=true; run(); var b=document.getElementById('site-err'); if(b){b.style.display='block';} });
+  var pre=window.__JM_DATA__;
+  function showOffline(j){ var b=document.getElementById('site-off'); if(!b) return; b.innerHTML='';
+    b.append(document.createTextNode(pre?'這是離線版檔案，顯示的是 ':'目前沒有網路，顯示的是上次有訊號時存下來的 '));
+    var t=document.createElement('b'); t.textContent=j.updated_at||'—'; b.append(t);
+    b.append(document.createTextNode(' 的資料，不會再更新。')); b.style.display='block'; }
+  function load(){
+    if(pre) return Promise.resolve({j:pre,off:true});
+    return fetch('data.json?v='+Date.now(),{cache:'no-store'}).then(function(r){ if(!r.ok) throw new Error(r.status);
+      return r.json().then(function(j){ return {j:j,off:r.headers.get('x-jm-offline')==='1'||navigator.onLine===false}; }); });
+  }
+  function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',fn); else fn(); }
+  load().then(function(o){ var j=o.j; store=j.datasets||{}; loaded=true; cache={}; run();
+      ready(function(){
+        var f=document.getElementById('site-updated'); if(f&&j.updated_at) f.textContent=j.updated_at;
+        if(o.off) showOffline(j);
+        window.addEventListener('offline',function(){ showOffline(j); });
+        window.addEventListener('online',function(){ if(!pre){ var b=document.getElementById('site-off'); if(b) b.style.display='none'; } });
+      }); })
+    .catch(function(e){ failed=true; run(); ready(function(){ var b=document.getElementById('site-err'); if(b){b.style.display='block';} }); });
+  if(!pre && 'serviceWorker' in navigator && location.protocol!=='file:'){ navigator.serviceWorker.register('sw.js').catch(function(){}); }
   var w=0; window.addEventListener('resize',function(){ var n=window.innerWidth; if(Math.abs(n-w)>40){ w=n; cache={}; run(); } });
 })();
 </script>
@@ -72,6 +96,7 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
 <body>
 <div id="dash-root">
 <div class="site-err" id="site-err">資料暫時讀不到，請稍後重新整理。</div>
+<div class="site-off" id="site-off"></div>
 <style>
 /* 版面：頁首＋三張過夜溫度卡 → 山形剖面疊氣溫的主圖 → 各點時間軸（溫度計條）→ 來源 */
 #dash-root { --jm-c0: #2f5fb3; --jm-c5: #3f8fd2; --jm-c10: #3aa39a; --jm-c15: #d9a23a; --jm-c20: #d9733a; --jm-ridge: #8a96a8; }
@@ -84,6 +109,8 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
 .jm-take { color: var(--color-fg-muted); margin: var(--cds-gap-sm) 0 0; font-size: var(--cds-font-size-body); max-width: 62ch; line-height: 1.6; }
 .jm-take b { color: var(--color-fg); font-weight: 600; }
 .jm-low { display: inline-block; font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); border-radius: 999px; padding: 0 8px; margin-left: 4px; white-space: nowrap; }
+.jm-low.lv-good { border-color: transparent; background: color-mix(in srgb, var(--color-ok) 16%, transparent); color: var(--color-fg); }
+.jm-low.lv-caution { border-color: transparent; background: color-mix(in srgb, var(--color-warn) 18%, transparent); color: var(--color-fg); }
 
 .jm-tiles { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
 .jm-tile { position: relative; overflow: hidden; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-xs); min-height: 9.5rem; }
@@ -172,6 +199,11 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
 .jm-rain th:first-child, .jm-rain td:first-child { text-align: left; }
 .jm-rain td.hi { font-weight: 600; color: var(--color-fg); }
 .jm-warn { border-left: 3px solid var(--jm-c20); padding: var(--cds-pad-sm) var(--cds-pad-md); margin-top: var(--cds-gap-md); font-size: var(--cds-font-size-caption); line-height: 1.6; background: color-mix(in srgb, var(--jm-c20) 8%, transparent); border-radius: 0 var(--cds-radius) var(--cds-radius) 0; }
+.jm-offline-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-sm) var(--cds-gap-md); }
+.jm-offline-row .jm-note { margin: 0; }
+.jm-btn { font: inherit; font-size: var(--cds-font-size-body); font-weight: 600; border: 1px solid var(--color-fg); border-radius: 999px; padding: 8px 16px; background: var(--color-fg); color: var(--color-bg); cursor: pointer; }
+.jm-btn:disabled { opacity: .55; cursor: default; }
+.jm-btn:focus-visible { outline: 2px solid var(--jm-c5); outline-offset: 2px; }
 .jm-links { display: grid; gap: var(--cds-gap-sm); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); margin-top: var(--cds-gap-sm); }
 .jm-links a { display: block; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-sm) var(--cds-pad-md); color: var(--color-fg); text-decoration: none; font-size: var(--cds-font-size-body); line-height: 1.4; }
 .jm-links a:hover { border-color: var(--color-fg-muted); }
@@ -235,7 +267,7 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
   <header class="jm-head">
     <p class="jm-eyebrow">11/6–11/8｜戒茂斯上嘉明湖・向陽出｜三天兩夜</p>
     <h1 id="title">嘉明湖沿線氣溫</h1>
-    <p class="jm-take"><span id="take-real">預報目前涵蓋到 <b data-source="summary" data-field="covered_until" data-row="0" class="dash-skeleton">—</b>。已涵蓋的時段裡，體感最低 <b data-source="summary" data-field="coldest_feels" data-row="0" class="dash-skeleton">—</b> °C，在 <b data-source="summary" data-field="coldest_place" data-row="0" class="dash-skeleton">—</b>（<span data-source="summary" data-field="coldest_time" data-row="0" class="dash-skeleton">—</span>）。</span><span class="jm-low">遠期預報・低可信度</span></p>
+    <p class="jm-take"><span id="take-real">預報目前涵蓋到 <b data-source="summary" data-field="covered_until" data-row="0" class="dash-skeleton">—</b>。已涵蓋的時段裡，體感最低 <b data-source="summary" data-field="coldest_feels" data-row="0" class="dash-skeleton">—</b> °C，在 <b data-source="summary" data-field="coldest_place" data-row="0" class="dash-skeleton">—</b>（<span data-source="summary" data-field="coldest_time" data-row="0" class="dash-skeleton">—</span>）。</span><span class="jm-low" id="conf-pill">遠期預報・低可信度</span></p>
     <div class="jm-view" role="group" aria-label="切換日期">
       <button type="button" id="v-real" aria-pressed="true">實際行程 11/6–11/8</button>
       <button type="button" id="v-m2" aria-pressed="false">提前兩天試算 11/4–11/6</button>
@@ -326,6 +358,15 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
     <p class="jm-note">輔助資訊。天黑時刻、月亮與行星是天文計算（固定不變），雲量是每天更新的格點預報。雲量是總雲量、包含低雲，營地海拔高時低雲可能在腳下，實際常比數字好。「適合觀星」是全暗、月亮不干擾，而且該模式雲量 30% 以下的連續時段。流星雨資料參考 <a href="https://starwalk.space/zh-Hant/news/november-meteor-showers" target="_blank" rel="noopener">Star Walk 2026 年 11 月流星雨整理</a>。</p>
     <div class="jm-stars" id="star-nights" data-source="stargaze stargaze_nights sky_nights"></div>
     <div class="jm-key" id="star-key"></div>
+  </section>
+
+  <section class="jm-card" id="offline">
+    <h2>上山沒訊號怎麼看</h2>
+    <p class="jm-note">這一頁有離線快取。出發前（最好是 11/6 早上更新後）在有訊號的地方開過一次，之後沒網路也打得開，頁面上會標示資料是幾點的。iPhone 用 Safari 開，按分享、「加入主畫面」，從主畫面開最穩。保險起見也可以把當下的版本存成一個檔案：</p>
+    <div class="jm-offline-row">
+      <button type="button" class="jm-btn" id="dl-off">下載離線版（單一 HTML 檔）</button>
+      <span class="jm-note" id="dl-hint">存到手機的「檔案」裡，沒網路時從「檔案」點開就能看。</span>
+    </div>
   </section>
 
   <section class="jm-card" id="links">
@@ -543,6 +584,8 @@ window.jm = {
   t: v => v == null ? '—' : (Math.round(v * 10) / 10).toFixed(1),
   hm: s => s.slice(11, 16),
   md: s => s.slice(5, 10).replace('-', '/'),
+  // ISO 時間字串轉成「11/15 22:00」；只有日期就「11/07」；其他字串原樣回傳
+  ts: v => { if (v == null) return ''; const s = String(v); const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/); if (!m) return s; return m[2] + '/' + m[3] + (m[4] ? ' ' + m[4] + ':' + m[5] : ''); },
   date: s => new Date(s + ':00Z'),
   // 溫度色：0、5、10、15、20 °C 五個色階
   color: (v) => {
@@ -561,6 +604,33 @@ window.jmView = 'real';
 const V = base => base + (window.jmView === 'm2' ? '_m2' : '');
 const cssv = n => getComputedStyle(document.getElementById('dash-root') || document.documentElement).getPropertyValue(n).trim();
 const mk = (src, field, where, text) => { const e = document.createElement('span'); e.dataset.source = src; e.dataset.field = field; if (where) e.dataset.where = where; e.textContent = text; return e; };
+
+(function () {
+  const btn = document.getElementById('dl-off');
+  if (!btn) return;
+  if (window.__JM_DATA__ || location.protocol === 'file:') { document.getElementById('offline').hidden = true; return; }
+  btn.addEventListener('click', () => {
+    btn.disabled = true; btn.textContent = '打包中…';
+    const tag = '<script src="d3.min.js"></' + 'script>';
+    Promise.all([
+      fetch('index.html', { cache: 'no-store' }).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }),
+      fetch('d3.min.js').then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }),
+      fetch('data.json?v=' + Date.now(), { cache: 'no-store' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    ]).then(([html, d3src, data]) => {
+      if (!html.includes(tag)) throw new Error('template');
+      const inline = '<script>' + d3src.replace(/<\/script/gi, '<\\/script') + '</' + 'script>\n<script>window.__JM_DATA__=' + JSON.stringify(data).replace(/</g, '\\u003c') + ';</' + 'script>';
+      const out = html.replace(tag, () => inline);
+      const mt = /(\d+)\/(\d+)\s+(\d+):(\d+)/.exec(String(data.updated_at || ''));
+      const stamp = mt ? mt.slice(1).map(v => v.padStart(2, '0')).join('') : String(Date.now());
+      const name = 'jiaminghu_offline_' + stamp.slice(0, 4) + '_' + stamp.slice(4) + '.html';
+      const url = URL.createObjectURL(new Blob([out], { type: 'text/html' }));
+      const a = document.createElement('a'); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      document.getElementById('dl-hint').textContent = '已產生 ' + name + '（資料 ' + (data.updated_at || '') + '）。iPhone 會問要不要下載，存到「檔案」後離線也能開。';
+    }).catch(() => { document.getElementById('dl-hint').textContent = '打包失敗，請確認有網路後再試一次。'; })
+      .finally(() => { btn.disabled = false; btn.textContent = '下載離線版（單一 HTML 檔）'; });
+  });
+})();
 
 function drawSummary() {
   const s = dash.data(V('summary'));
@@ -622,7 +692,7 @@ function drawSources() {
   if (s.status !== 'ok') return;
   s.data.forEach(r => {
     const tr = document.createElement('tr');
-    ['source', 'last_forecast', 'queried_at', 'note'].forEach(k => { const td = document.createElement('td'); td.textContent = r[k] ?? ''; tr.appendChild(td); });
+    ['source', 'last_forecast', 'queried_at', 'note'].forEach(k => { const td = document.createElement('td'); td.textContent = J.ts(r[k]); if (r[k] != null && String(r[k]) !== td.textContent) td.title = String(r[k]); tr.appendChild(td); });
     tb.appendChild(tr);
   });
 }
@@ -659,7 +729,7 @@ function drawDays() {
       meta.append(mk(V('checkpoints'), 'elev_m', w, r.elev_m), document.createTextNode(' m'));
       const rp = r.rainprob_gfs ?? r.rainprob_ecmwf, rf = r.rainprob_gfs != null ? 'rainprob_gfs' : 'rainprob_ecmwf';
       const wd = r.wind_gfs ?? r.wind_ecmwf, wf = r.wind_gfs != null ? 'wind_gfs' : 'wind_ecmwf';
-      if (rp != null) meta.append(document.createTextNode('・雨 '), mk(V('checkpoints'), rf, w, rp), document.createTextNode('%・風 '), mk(V('checkpoints'), wf, w, J.t(wd)), document.createTextNode(' m/s'));
+      if (rp != null) meta.append(document.createTextNode('・雨 '), mk(V('checkpoints'), rf, w, rp), document.createTextNode('%・風 '), mk(V('checkpoints'), wf, w, J.t(wd)), document.createTextNode('\u00a0m/s'));
       pl.append(nm, meta);
       const th = document.createElement('div'); th.className = 'jm-thermo';
       const rail = document.createElement('div'); rail.className = 'rail'; th.append(rail);
@@ -705,7 +775,8 @@ function drawChart() {
   const route = R.data.map(d => ({ ...d, t: J.date(d.time) }));
   const itin = I.data.map(d => { const t = J.date(d.time); t.setUTCDate(t.getUTCDate() + SH); return { ...d, t, time: t.toISOString().slice(0, 16) }; });
   const W = Math.max(300, el.clientWidth), H = 430;
-  const m = { t: 58, r: 44, b: 90, l: 40 };
+  const narrow = W < 600;
+  const m = { t: narrow ? 74 : 58, r: 44, b: 90, l: 40 };
   const t0 = route[0].t, t1 = route[route.length - 1].t;
   const x = d3.scaleUtc([t0, t1], [m.l, W - m.r]);
   const vals = route.flatMap(d => [d.temp_ecmwf, d.temp_gfs, d.feels_ecmwf, d.feels_gfs]).filter(v => v != null);
@@ -757,7 +828,7 @@ function drawChart() {
   svg.append('g').selectAll('text').data(hrs).join('text').attr('x', d => x(d)).attr('y', H - m.b + 14).attr('text-anchor', 'middle').text(d => String(d.getUTCHours()).padStart(2, '0'));
   const dstarts = [t0, ...days];
   svg.append('g').selectAll('text').data(dstarts).join('text').attr('class', 'strong').attr('x', (d, i) => i === 0 ? m.l : x(d) + 4).attr('y', H - m.b + 30)
-    .text((d, i) => `DAY ${i + 1}・${d.getUTCMonth() + 1}/${d.getUTCDate()}`);
+    .text((d, i) => narrow ? `D${i + 1} ${d.getUTCMonth() + 1}/${d.getUTCDate()}` : `DAY ${i + 1}・${d.getUTCMonth() + 1}/${d.getUTCDate()}`);
 
   // 線
   const line = k => d3.line().defined(d => d[k] != null).x(d => x(d.t)).y(d => y(d[k]));
@@ -775,16 +846,21 @@ function drawChart() {
     g.append('circle').attr('cx', x(d.t)).attr('cy', ye(d.elev_m)).attr('r', key ? 3.5 : 2.5).attr('fill', cssv('--color-panel')).attr('stroke', ridge).attr('stroke-width', 1.5);
   });
   const key = itin.filter(d => /起登|抵達營地|拔營出發|下山|日出/.test(d.event));
-  const lastX = [-1e9, -1e9];
+  // 依文字實際寬度排到第一個放得下的那一排（窄螢幕最多三排），避免互相疊字
+  const rowsY = narrow ? [m.t - 50, m.t - 34, m.t - 18] : [m.t - 34, m.t - 18];
+  const lastEnd = rowsY.map(() => -1e9);
   key.forEach(d => {
     const px = x(d.t);
-    const row = px - lastX[0] > 76 ? 0 : 1;
     const lab = d.event.replace('抵達營地', '抵達').replace('拔營出發', '出發') + ' ' + J.hm(d.time);
-    const tx = g.append('text').attr('x', px).attr('y', row === 0 ? m.t - 34 : m.t - 18).attr('text-anchor', 'middle').attr('class', 'strong').text(lab);
-    const bb = tx.node().getBBox();
+    const tx = g.append('text').attr('x', px).attr('y', rowsY[0]).attr('text-anchor', 'middle').attr('class', 'strong').text(lab);
+    let bb = tx.node().getBBox();
     if (bb.x < 2) tx.attr('text-anchor', 'start').attr('x', 2);
     if (bb.x + bb.width > W - 2) tx.attr('text-anchor', 'end').attr('x', W - 2);
-    lastX[row] = px;
+    bb = tx.node().getBBox();
+    let row = lastEnd.findIndex(e => bb.x - e > 6);
+    if (row < 0) row = lastEnd.indexOf(Math.min(...lastEnd));
+    tx.attr('y', rowsY[row]);
+    lastEnd[row] = bb.x + bb.width;
   });
 
   // 天氣小圖示（兩列：ECMWF、GFS）
@@ -917,6 +993,15 @@ function drawAssessment() {
   const ov = rows.find(r => r.id === 'overall');
   const t0 = ov ? ov.assessed_at : rows[0].assessed_at;
   tm.textContent = t0 ? String(t0).slice(5, 10).replace('-', '/') + ' ' + String(t0).slice(11, 16) : '—';
+  // 頁首的可信度小標跟著「預報可信度」那一列走
+  const pill = document.getElementById('conf-pill');
+  const cf = rows.find(r => r.id === 'confidence');
+  if (pill && cf) {
+    const PT = { good: '三天內預報・可信度高', caution: '中期預報・中等可信度', bad: '中期預報・中等可信度', unknown: '遠期預報・低可信度' };
+    pill.textContent = PT[cf.level] || PT.unknown;
+    pill.className = 'jm-low ' + (cf.level === 'bad' ? 'lv-caution' : lvCls(cf));
+    pill.title = cf.headline || '';
+  }
   if (ov) {
     const d = document.createElement('div'); d.className = 'ov ' + lvCls(ov);
     const h = document.createElement('p'); h.className = 'hl'; h.append(mk('assessment', 'headline', W(ov), ov.headline || '—'));
