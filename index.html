@@ -200,6 +200,8 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
 .jm-cwa td.slot b { color: var(--color-fg); font-weight: 600; margin-right: 4px; }
 .jm-cwa tr.night td { background: color-mix(in srgb, var(--jm-ridge) 7%, transparent); }
 .jm-cwa tr.trip td { background: color-mix(in srgb, var(--jm-c15) 16%, transparent); }
+.jm-cwa tr.trip td.here { background: color-mix(in srgb, var(--jm-c15) 46%, transparent); box-shadow: inset 3px 0 0 var(--jm-c15); }
+.jm-cwa .here-tag { display: block; margin-top: 2px; font-size: var(--cds-font-size-caption); font-weight: 600; color: var(--color-fg); }
 .jm-cell { display: flex; align-items: center; gap: 6px; }
 .jm-cell svg { width: 24px; height: 24px; flex: none; }
 .jm-cell .tt { font-weight: 600; }
@@ -330,7 +332,7 @@ body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:var(-
 
   <section class="jm-card" id="cwa">
     <h2>中央氣象署 一週預報</h2>
-    <p class="jm-note">嘉明湖步道沿線的三個官方預報點，分白天、晚上。黃底是行程日期，第 4 天以後氣象署不提供降雨機率。</p>
+    <p class="jm-note">嘉明湖步道沿線的三個官方預報點，分白天、晚上。黃底是行程日期，顏色較深的格子是那個時段人在的位置（附時間與地點）；只列到 11/9，第 4 天以後氣象署不提供降雨機率。</p>
     <div class="jm-status" id="cwa-status" data-source="cwa_week"></div>
     <div class="jm-scroll">
       <table class="jm-cwa" id="cwa-table" data-source="cwa_week">
@@ -937,13 +939,32 @@ function drawCwa() {
   const rows = s.data;
   const dates = [...new Set(rows.map(r => r.date))].sort();
   const last = dates[dates.length - 1];
+  const shown = dates.filter(d => d <= '2026-11-09');
+  const P2C = { '戒茂斯登山口': 'E041', '戒茂斯山前峰': 'E041', '戒茂斯山': 'E041', '新武呂溪營地': 'E041', '足球場營地': 'E041', '向陽遊樂區': 'E041',
+    '嘉明湖妹池': 'D055', '獵寮營地': 'D055', '嘉明湖': 'D055', '三叉山': 'D055', '嘉明湖山屋': 'D058', '向陽山屋': 'D058' };
+  const rt = dash.data('route');
+  const here = {};
+  if (rt.status === 'ok') rt.data.forEach(x => {
+    const pt = P2C[x.place]; if (!pt || !x.time) return;
+    const h = +x.time.slice(11, 13);
+    let d = x.time.slice(0, 10), per = '白天';
+    if (h >= 18) per = '晚上';
+    else if (h < 6) { per = '晚上'; const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() - 1); d = t.toISOString().slice(0, 10); }
+    (here[d + '|' + per + '|' + pt] ||= []).push(x);
+  });
+  const hereTxt = hs => {
+    const hh = x => x.time.slice(11, 13);
+    const end = String((+hh(hs[hs.length - 1]) + 1) % 24).padStart(2, '0');
+    const a = hs[0].place, b = hs[hs.length - 1].place;
+    return '在這：' + hh(hs[0]) + '–' + end + ' ' + (a === b ? a : a + '→' + b);
+  };
   const trip = ['2026-11-06', '2026-11-07', '2026-11-08'];
   const pill = (txt, ok) => { const p = document.createElement('span'); p.className = 'jm-pill' + (ok ? ' ok' : ''); p.textContent = txt; st.append(p); };
   pill('最遠到 ' + (last ? last.slice(5).replace('-', '/') : '—'));
   trip.forEach(d => pill(d.slice(5).replace('-', '/') + (dates.includes(d) ? ' 已涵蓋' : ' 尚未涵蓋'), dates.includes(d)));
   const pts = ['E041', 'D058', 'D055'];
   const wk = ['日', '一', '二', '三', '四', '五', '六'];
-  dates.forEach(d => ['白天', '晚上'].forEach(per => {
+  shown.forEach(d => ['白天', '晚上'].forEach(per => {
     const tr = document.createElement('tr');
     if (per === '晚上') tr.classList.add('night');
     if (trip.includes(d)) tr.classList.add('trip');
@@ -966,6 +987,8 @@ function drawCwa() {
       pp.append(mk('cwa_week', 'wx', w, r.wx), document.createTextNode('・體感 '), mk('cwa_week', 'min_at', w, r.min_at), document.createTextNode('°・雨 '));
       pp.append(r.pop == null ? document.createTextNode('未提供') : mk('cwa_week', 'pop', w, r.pop + '%'));
       box.append(tt, pp);
+      const hs = here[d + '|' + per + '|' + p];
+      if (hs && trip.includes(d)) { td.classList.add('here'); const tg = document.createElement('span'); tg.className = 'here-tag'; tg.textContent = hereTxt(hs); box.append(tg); }
       cell.append(ic, box); td.append(cell); tr.append(td);
     });
     tb.append(tr);
