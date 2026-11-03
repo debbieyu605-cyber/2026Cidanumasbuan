@@ -13,3 +13,9 @@
 - `d3.min.js` 放在 repo 內（原本從 CDN 載入），離線時才載得到。
 
 每天的排程只更新 `data.json`，不動其他檔案。
+
+## 社群分享圖
+
+- `og-image.png`（1200×630）是 LINE、Facebook、Threads 貼連結時的預覽圖，由 `index.html` 的 og meta 指定。
+- `og-square.png`（1080×1080）是發 IG 或 LINE 貼文時可以直接用的方形版。
+- 兩張圖的版型在 `social/og.html`，改完用瀏覽器開、截圖即可。
